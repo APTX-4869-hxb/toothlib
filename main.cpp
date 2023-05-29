@@ -267,10 +267,6 @@ int main(int argc, char *argv[]) {
     igl::opengl::glfw::imgui::ImGuiMenu menu;
     plugin.widgets.push_back(&menu);
 
-    viewer.core().background_color << 0.85f, 0.85f, 0.85f, 1.0f;
-    viewer.data().show_lines = false;
-
-
     menu.callback_draw_viewer_menu = [&]()
     {
         // Workspace
@@ -296,9 +292,6 @@ int main(int argc, char *argv[]) {
             if (ImGui::Button("Load##Model", ImVec2((w - p) / 2.f, 0)))
             {
                 fname = viewer.open_dialog_load_mesh();
-                viewer.data().uniform_colors(Eigen::Vector3d(51.0 / 255.0, 43.0 / 255.0, 33.3 / 255.0),
-                    Eigen::Vector3d(255.0 / 255.0, 228.0 / 255.0, 238.0 / 255.0),
-                    Eigen::Vector3d(255.0 / 255.0, 235.0 / 255.0, 255.0 / 255.0));
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Model", ImVec2((w - p) / 2.f, 0)))
@@ -425,7 +418,6 @@ int main(int argc, char *argv[]) {
                 ofs.close();
 
                 viewer.load_mesh_from_file(fname.c_str());
-                viewer.data().show_lines = false;
             }
         }
 

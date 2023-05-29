@@ -33,6 +33,24 @@ add_definitions(-DUSER_TOKEN="${USER_TOKEN}")
 add_definitions(-DSERVER_URL="${SERVER_URL}")
 add_definitions(-DFILE_SERVER_URL="${FILE_SERVER_URL}")
 
+# CMake module path
+list(PREPEND CMAKE_MODULE_PATH
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/igl
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/find
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/recipes/external
+)
+
+set_property(GLOBAL PROPERTY __igl_module_path ${CMAKE_MODULE_PATH})
+
+include(igl_add_library)
+include(igl_add_test)
+include(igl_add_tutorial)
+include(igl_copy_dll)
+include(igl_include)
+include(igl_install)
+include(igl_target_sources)
+
 # Libigl
 include(libigl)
 include(FetchContent)
@@ -42,7 +60,7 @@ igl_include(glfw)
 igl_include(imgui)
 
 FetchContent_Declare(cpr GIT_REPOSITORY https://github.com/libcpr/cpr.git
-                         GIT_TAG 0817715923c9705e68994eb52ef9df3f6845beba) # The commit hash for 1.10.x. Replace with the latest from: https://github.com/libcpr/cpr/releases
+    GIT_TAG 0817715923c9705e68994eb52ef9df3f6845beba) # The commit hash for 1.10.x. Replace with the latest from: https://github.com/libcpr/cpr/releases
 FetchContent_MakeAvailable(cpr)
 
 # Add your project files
