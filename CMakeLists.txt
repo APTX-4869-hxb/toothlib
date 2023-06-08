@@ -6,6 +6,8 @@ list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(PROJ_PATH ${PROJECT_SOURCE_DIR})
+
 # if(NOT CMAKE_BUILD_TYPE)
 # set(CMAKE_BUILD_TYPE Release)
 # endif()
@@ -65,6 +67,8 @@ FetchContent_MakeAvailable(cpr)
 
 # Add your project files
 file(GLOB SRC_FILES *.cpp)
+
+configure_file(cmake/path.h.in ../include/path.h)
 
 include_directories(include)
 
