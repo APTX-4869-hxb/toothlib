@@ -1,5 +1,6 @@
 #include <api.h>
 
+
 string dump_json(Document& doc)
 {
     StringBuffer buffer;
@@ -82,27 +83,11 @@ string upload_mesh(string& stl_file_path, char& jaw_type, string& stl_, vector<i
     return urn;
 }
 
-bool config_request(string urn, char jaw_type, Document& input_data, Document& input_data_mesh_config, Document& output_config, Document& output_config_mesh, Document& request_body) {
-    add_string_member(input_data_mesh_config, "type", "stl");
-    add_string_member(input_data_mesh_config, "data", urn);
-    input_data.AddMember(
-        "mesh",
-        input_data_mesh_config,
-        input_data.GetAllocator());
+bool config_request(map<string, string> spec, Document& input_data, Document& output_config, Document& request_body) {
 
-    add_string_member(input_data, "jaw_type", (jaw_type == 'L') ? "Lower" : "Upper");
-
-    //cout << dump_json(input_data) << endl;
-
-    add_string_member(output_config_mesh, "type", "stl");
-    output_config.AddMember(
-        "mesh",
-        output_config_mesh,
-        output_config.GetAllocator());
-
-    add_string_member(request_body, "spec_group", "mesh-processing");
-    add_string_member(request_body, "spec_name", "oral-seg");
-    add_string_member(request_body, "spec_version", "1.0-snapshot");
+    add_string_member(request_body, "spec_group", spec["spec_group"]);
+    add_string_member(request_body, "spec_name", spec["spec_name"]);
+    add_string_member(request_body, "spec_version", spec["spec_version"]);
     add_string_member(request_body, "user_group", "APIClient");
     add_string_member(request_body, "user_id", USER_ID);
     request_body.AddMember(
@@ -175,17 +160,32 @@ bool get_job_result(string job_id, Document& document_result, string& error_msg_
         return false;
     }
     document_result.Parse(r.text.c_str());
+    //cout << dump_json(document_result);
     return true;
 }
 
-void download_mesh(Document& document_result, string& stl_, vector<int>& label_) {
-    string download_urn = document_result["mesh"]["data"].GetString();
+void download_mesh(Document& document_result, string & stl_, const char* object) {
+    string download_urn = document_result[object]["data"].GetString();
 
     cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
         cpr::Header{ {"X-ZH-TOKEN", USER_TOKEN} }, cpr::VerifySsl(0));
 
     stl_ = string(r.text);
+}
 
+void download_label(Document& document_result, vector<int>& label_) {
     label_.clear();
     for (auto& v : document_result["seg_labels"].GetArray()) label_.push_back(v.IsInt() ? v.GetInt() : (int)(v.GetDouble() + 0.1));
+}
+
+void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_) {
+
+    for (auto& v : document_result["teeth_comp"].GetObject()) {
+        string download_urn = v.value["data"].GetString();
+
+        cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
+            cpr::Header{ {"X-ZH-TOKEN", USER_TOKEN} }, cpr::VerifySsl(0));
+
+        t_comp_stl_.insert(pair<string, string>(v.name.GetString(), string(r.text)));
+    }
 }

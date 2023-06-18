@@ -24,8 +24,8 @@ using namespace std;
 
 
 int main(int argc, char *argv[]) {
-    Eigen::MatrixXd V;
-    Eigen::MatrixXi F;
+    //Eigen::MatrixXd V;
+    //Eigen::MatrixXi F;
 
     //// Load a mesh in OFF format
     //igl::readOFF("bunny.off", V, F);
@@ -153,12 +153,15 @@ int main(int argc, char *argv[]) {
                 cout << "Segment..." << endl;
 
                 string result_stl, error_msg;
+                map<string, string> result_t_comp_stl;
                 vector<int> result_label;
 
-                if (!fmodel.segment_jaw(result_stl, result_label, error_msg)) {
+                if (!fmodel.segment_jaw(result_stl, result_t_comp_stl, result_label, error_msg)) {
                     cout << error_msg << endl;
                     return 1;
                 }
+
+                fmodel.set_teeth_comp(result_t_comp_stl);
 
                 string result_dir = PROJECT_PATH + string("/result");
                 auto result_dir_path = fs::path(result_dir);
@@ -173,15 +176,81 @@ int main(int argc, char *argv[]) {
                 ofs << result_stl;
                 ofs.close();
 
+                int last_selected = -1;
+                int old_id = viewer.data().id;
+
+                for (auto stl : result_t_comp_stl) {
+                    ofstream ofs;
+                    string comp_name = result_dir + string("/seg_") + fmodel.stl_name() + string("_comp_") + stl.first + string(".stl");
+                    ofs.open(comp_name, ofstream::out | ofstream::binary);
+                    ofs << stl.second;
+                    ofs.close();
+
+                    viewer.load_mesh_from_file(comp_name.c_str(), false);
+                    fmodel.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
+                    fmodel.mesh_add_tooth(viewer.data().id);
+                }
+
+                viewer.erase_mesh(0);
+                last_selected = -1;
+
+                viewer.callback_pre_draw =
+                    [&](igl::opengl::glfw::Viewer&)
+                {
+                    if (last_selected != viewer.selected_data_index)
+                    {
+                        int cur_id = viewer.data_list[viewer.selected_data_index].id;
+                        //cout << "cur_id:" << cur_id << endl;
+                        if (!fmodel.mesh_is_tooth(cur_id)) {
+                            //cout << "round" << endl;
+                            if (cur_id > fmodel.mesh_max_tooth_id())
+                                viewer.selected_data_index = viewer.mesh_index(fmodel.mesh_min_tooth_id());
+                            else
+                                viewer.selected_data_index = viewer.mesh_index(fmodel.mesh_max_tooth_id());
+                        }
+
+                        for (auto& data : viewer.data_list) {
+                                data.set_colors(fmodel.get_color(data.id));
+                        }
+                        viewer.data_list[viewer.selected_data_index].set_colors(fmodel.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
+                        last_selected = viewer.selected_data_index;
+                    }
+                    return false;
+                };
                 string res_label_name = result_dir + string("/seg_") + fmodel.stl_name() + string(".txt");
                 ofs.open(res_label_name, ofstream::out);
                 for (const auto& e : result_label) ofs << e << endl;
                 ofs.close();
 
-                fmodel = model(res_mesh_name);
-                viewer.load_mesh_from_file(res_mesh_name.c_str());
-
                 cout << "Segment complete." << endl;
+            }
+
+            if (ImGui::Button("Generate gum##Functions", ImVec2((w - p), 0)))
+            {
+                cout << "Gum generating..." << endl;
+                
+                string result_ply, error_msg;
+
+                if (!fmodel.generate_gum(result_ply, error_msg)) {
+                    cout << error_msg << endl;
+                    return 1;
+                }
+                string result_dir = PROJECT_PATH + string("/result");
+                auto result_dir_path = fs::path(result_dir);
+
+                if (!fs::is_directory(result_dir_path)) {
+                    fs::create_directory(result_dir_path);
+                }
+
+                ofstream ofs;
+                string res_mesh_name = result_dir + string("/") + fmodel.stl_name() + string("_gum.ply");
+                ofs.open(res_mesh_name, ofstream::out | ofstream::binary);
+                ofs << result_ply;
+                ofs.close();
+
+                viewer.load_mesh_from_file(res_mesh_name.c_str(), false);
+                fmodel.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
+                cout << "Gum generation complete." << endl;
             }
         }
 

@@ -353,7 +353,7 @@ IGL_INLINE Viewer::Viewer()
 IGL_INLINE Viewer::~Viewer() {}
 
 IGL_INLINE bool
-Viewer::load_mesh_from_file(const std::string &mesh_file_name_string) {
+Viewer::load_mesh_from_file(const std::string &mesh_file_name_string, bool align_cam) {
 
     // first try to load it with a plugin
     for (unsigned int i = 0; i < plugins.size(); ++i) {
@@ -413,8 +413,9 @@ Viewer::load_mesh_from_file(const std::string &mesh_file_name_string) {
             Eigen::Vector3d(255.0 / 255.0, 228.0 / 255.0, 238.0 / 255.0),
             Eigen::Vector3d(255.0 / 255.0, 235.0 / 255.0, 255.0 / 255.0));
 
-    for (int i = 0; i < core_list.size(); i++)
-        core_list[i].align_camera_center(data().V, data().F);
+    if(align_cam)
+        for (int i = 0; i < core_list.size(); i++)
+            core_list[i].align_camera_center(data().V, data().F);
 
     for (unsigned int i = 0; i < plugins.size(); ++i)
         if (plugins[i]->post_load())

@@ -55,7 +55,7 @@ namespace glfw
     Viewer();
     ~Viewer();
     // Mesh IO
-    IGL_INLINE bool load_mesh_from_file(const std::string & mesh_file_name);
+    IGL_INLINE bool load_mesh_from_file(const std::string & mesh_file_name, bool align_cam = true);
     IGL_INLINE bool   save_mesh_to_file(const std::string & mesh_file_name);
     // Callbacks
     IGL_INLINE bool key_pressed(unsigned int unicode_key,int modifier);
