@@ -1,4 +1,5 @@
 #include <igl/opengl/glfw/Viewer.h>
+#include <igl/unproject_onto_mesh.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
@@ -23,6 +24,9 @@ using namespace rapidjson;
 using namespace std;
 
 
+float text_shift_scale_factor;
+float render_scale;
+
 int main(int argc, char *argv[]) {
     //Eigen::MatrixXd V;
     //Eigen::MatrixXi F;
@@ -38,6 +42,8 @@ int main(int argc, char *argv[]) {
     viewer.plugins.push_back(&plugin);
     igl::opengl::glfw::imgui::ImGuiMenu menu;
     plugin.widgets.push_back(&menu);
+
+
 
     menu.callback_draw_viewer_menu = [&]()
     {
@@ -64,7 +70,8 @@ int main(int argc, char *argv[]) {
             if (ImGui::Button("Load##Model", ImVec2((w - p) / 2.f, 0)))
             {
                 string fpath = viewer.open_dialog_load_mesh();
-                fmodel = model(fpath);
+                if(fpath != "false")
+                    fmodel = model(fpath);
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Model", ImVec2((w - p) / 2.f, 0)))
@@ -148,9 +155,9 @@ int main(int argc, char *argv[]) {
         {
             float w = ImGui::GetContentRegionAvail().x;
             float p = ImGui::GetStyle().FramePadding.x;
-            if (ImGui::Button("Segment##Functions", ImVec2((w - p), 0)))
+            if (ImGui::Button("Segment & completion##Functions", ImVec2((w - p), 0)))
             {
-                cout << "Segment..." << endl;
+                cout << "Segment and completion..." << endl;
 
                 string result_stl, error_msg;
                 map<string, string> result_t_comp_stl;
@@ -176,8 +183,6 @@ int main(int argc, char *argv[]) {
                 ofs << result_stl;
                 ofs.close();
 
-                int last_selected = -1;
-                int old_id = viewer.data().id;
 
                 for (auto stl : result_t_comp_stl) {
                     ofstream ofs;
@@ -188,17 +193,21 @@ int main(int argc, char *argv[]) {
 
                     viewer.load_mesh_from_file(comp_name.c_str(), false);
                     fmodel.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
-                    fmodel.mesh_add_tooth(viewer.data().id);
+                    fmodel.mesh_add_tooth(viewer.data().id, stl.first);
+
+                    viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, stl.first);
                 }
 
                 viewer.erase_mesh(0);
-                last_selected = -1;
 
                 viewer.callback_pre_draw =
                     [&](igl::opengl::glfw::Viewer&)
                 {
-                    if (last_selected != viewer.selected_data_index)
+                    //int cur_idx = viewer.selected_data_index;
+                    //cout << "cur index:" << viewer.selected_data_index << endl;
+                    if (fmodel.last_selected != viewer.selected_data_index)
                     {
+                        
                         int cur_id = viewer.data_list[viewer.selected_data_index].id;
                         //cout << "cur_id:" << cur_id << endl;
                         if (!fmodel.mesh_is_tooth(cur_id)) {
@@ -213,16 +222,63 @@ int main(int argc, char *argv[]) {
                                 data.set_colors(fmodel.get_color(data.id));
                         }
                         viewer.data_list[viewer.selected_data_index].set_colors(fmodel.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
-                        last_selected = viewer.selected_data_index;
+                        fmodel.last_selected = viewer.selected_data_index;
                     }
                     return false;
                 };
+
+                viewer.callback_mouse_down =
+                    [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+                {
+
+                    int fid;
+                    Eigen::Vector3f bc;
+                    // Cast a ray in the view direction starting from the mouse position
+                    // TODO: depth detection
+                    double x = viewer.current_mouse_x;
+                    double y = viewer.core().viewport(3) - viewer.current_mouse_y;
+                    for (auto& data : viewer.data_list) {
+                        if (igl::unproject_onto_mesh(
+                            Eigen::Vector2f(x, y),
+                            viewer.core().view,
+                            viewer.core().proj,
+                            viewer.core().viewport,
+                            data.V,
+                            data.F,
+                            fid,
+                            bc) 
+                            && fmodel.mesh_is_tooth(data.id)
+                            ) {
+                            std::cout << "You clicked on tooth #" << fmodel.get_tooth_label(viewer.data().id) << std::endl;
+                            viewer.selected_data_index = viewer.mesh_index(data.id);
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                // Draw additional windows
+                menu.callback_draw_custom_window = [&]()
+                {
+                    // Define next window position + size
+                    ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiCond_FirstUseEver);
+                    ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiCond_FirstUseEver);
+                    ImGui::Begin(
+                        "Tooth", nullptr,
+                        ImGuiWindowFlags_NoSavedSettings
+                    );
+
+                    ImGui::Text((string("Tooth Label: ") + fmodel.get_tooth_label(viewer.data().id)).c_str());
+
+                    ImGui::End();
+                };
+
                 string res_label_name = result_dir + string("/seg_") + fmodel.stl_name() + string(".txt");
                 ofs.open(res_label_name, ofstream::out);
                 for (const auto& e : result_label) ofs << e << endl;
                 ofs.close();
 
-                cout << "Segment complete." << endl;
+                cout << "Segment and completion complete." << endl;
             }
 
             if (ImGui::Button("Generate gum##Functions", ImVec2((w - p), 0)))
@@ -255,9 +311,6 @@ int main(int argc, char *argv[]) {
         }
 
     };
-
-    //// Plot the mesh
-    //viewer.data().set_mesh(V, F);
 
     viewer.launch();
 }

@@ -25,6 +25,8 @@ model::model(string fpath) {
     else {
         cout << "STL file name must end with u for upper jaw or l for lower jaw" << endl;
     }
+
+    last_selected = -1;
 }
 
 bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<int>& label_, string& error_msg_) {
@@ -188,3 +190,4 @@ bool model::generate_gum(string& ply_, string& error_msg_) {
 
     return true;
 }
+

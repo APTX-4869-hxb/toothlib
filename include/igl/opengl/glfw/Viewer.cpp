@@ -1092,7 +1092,7 @@ IGL_INLINE std::string Viewer::open_dialog_load_mesh() {
     std::string fname = igl::file_dialog_open();
 
     if (fname.length() == 0)
-        return 0;
+        return "false";
 
     this->load_mesh_from_file(fname.c_str());
     return fname;
@@ -1240,6 +1240,8 @@ IGL_INLINE int Viewer::append_core(Eigen::Vector4f viewport,
 } // namespace glfw
 } // namespace opengl
 } // namespace igl
+
+
 
 #ifdef IGL_STATIC_LIBRARY
 template void igl::opengl::glfw::Viewer::draw_buffer<unsigned char>(
