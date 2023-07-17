@@ -46,6 +46,7 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
     Document output_config(kObjectType);
     Document output_config_mesh(kObjectType);
     Document output_config_comp_mesh(kObjectType);
+    Document output_config_axis(kObjectType);
     Document request_body(kObjectType);
     Document document;
     Document document_result;
@@ -100,6 +101,9 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
     if (!get_job_result(job_id, document_result, error_msg_))
         return false;
 
+    //cout << dump_json(document_result) << endl;
+    //return false;
+
     // Step 5 download mesh
     download_mesh(document_result, stl_);
     download_label(document_result, label_);
@@ -107,6 +111,16 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
     for (auto& v : document_result["teeth_comp"].GetObjectA())
         teeth_comp_stl_urn.insert(pair<string, string>(v.name.GetString(), v.value["data"].GetString()));
     
+    for (auto& v : document_result["axis"].GetObjectA()) {
+        vector<vector<double>> axis;
+        for (int i = 0; i < v.value.Size(); i++) {
+            vector<double> axis_line;
+            for (int j = 0; j < v.value[i].Size(); j++) 
+                axis_line.push_back(v.value[i][j].GetDouble());
+            axis.push_back(axis_line);
+        }
+        teeth_axis.insert(pair<string, vector<vector<double>>>(v.name.GetString(), axis));
+    }
 
     download_t_comp_mesh(document_result, t_comp_stls_);
 

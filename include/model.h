@@ -22,7 +22,7 @@ private:
     map<string, string> teeth_comp_stl;
     map<string, string> teeth_comp_stl_urn;
     string gum_urn;
-
+    map<string, vector<vector<double>>> teeth_axis;
 public:
 
     int last_selected;
