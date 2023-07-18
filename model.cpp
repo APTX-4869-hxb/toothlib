@@ -13,7 +13,7 @@ model::model(string fpath) {
     stringstream ss(fname);
     getline(ss, fname, '.');
 
-    cout << "file name is: " << fname << endl;
+    //cout << "file name is: " << fname << endl;
 
     //char jaw_type = 'L';
     if (jaw_type == 'L' || jaw_type == 'l') {
@@ -29,7 +29,7 @@ model::model(string fpath) {
     last_selected = -1;
 }
 
-bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<int>& label_, string& error_msg_) {
+bool model::segment_jaw(string& stl_, vector<int>& label_, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
         Output:
             stl_: string containing preprocessed mesh data in STL format. This can directly be saved as *.stl file
@@ -45,8 +45,8 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
     Document input_data_mesh_config(kObjectType);
     Document output_config(kObjectType);
     Document output_config_mesh(kObjectType);
-    Document output_config_comp_mesh(kObjectType);
-    Document output_config_axis(kObjectType);
+    //Document output_config_comp_mesh(kObjectType);
+    //Document output_config_axis(kObjectType);
     Document request_body(kObjectType);
     Document document;
     Document document_result;
@@ -74,15 +74,15 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
         output_config_mesh,
         output_config.GetAllocator());
 
-    add_string_member(output_config_comp_mesh, "type", "stl");
-    output_config.AddMember(
-        "teeth_comp",
-        output_config_comp_mesh,
-        output_config.GetAllocator());
+    //add_string_member(output_config_comp_mesh, "type", "stl");
+    //output_config.AddMember(
+    //    "teeth_comp",
+    //    output_config_comp_mesh,
+    //    output_config.GetAllocator());
 
     map<string, string> spec;
     spec.insert(pair<string, string>("spec_group", "mesh-processing"));
-    spec.insert(pair<string, string>("spec_name", "oral-denoise-prod"));
+    spec.insert(pair<string, string>("spec_name", "oral-seg-and-axis"));
     spec.insert(pair<string, string>("spec_version", "1.0-snapshot"));
 
     // Step 1.2 config request
@@ -105,11 +105,12 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
     //return false;
 
     // Step 5 download mesh
-    download_mesh(document_result, stl_);
+    urn = download_mesh(document_result, stl_);
     download_label(document_result, label_);
 
-    for (auto& v : document_result["teeth_comp"].GetObjectA())
-        teeth_comp_stl_urn.insert(pair<string, string>(v.name.GetString(), v.value["data"].GetString()));
+    stl_file_urn = urn;
+    //for (auto& v : document_result["teeth_comp"].GetObjectA())
+    //    teeth_comp_stl_urn.insert(pair<string, string>(v.name.GetString(), v.value["data"].GetString()));
     
     for (auto& v : document_result["axis"].GetObjectA()) {
         vector<vector<double>> axis;
@@ -122,8 +123,9 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
         teeth_axis.insert(pair<string, vector<vector<double>>>(v.name.GetString(), axis));
     }
 
-    download_t_comp_mesh(document_result, t_comp_stls_);
+    //download_t_comp_mesh(document_result, teeth_comp_stl);
 
+    //teeth_comp_stl = t_comp_stls_;
 
     return true;
 }

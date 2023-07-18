@@ -24,7 +24,7 @@ bool config_request(map<string, string> spec, Document& input_data, Document& ou
 string submit_job(Document& document, Document& request_body, string& error_msg_);
 bool check_job(string job_id, string& error_msg_);
 bool get_job_result(string job_id, Document& document_result, string& error_msg_);
-void download_mesh(Document& document_result, string& stl_, const char* object = "mesh");
+string download_mesh(Document& document_result, string& stl_, const char* object = "mesh");
 void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_);
 void download_label(Document& document_result, vector<int>& label_);
 

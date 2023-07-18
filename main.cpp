@@ -15,10 +15,10 @@
 #include <thread>
 #include <utility>
 
-#include "path.h"
+
 #include "cpr/cpr.h"
 #include "api.h"
-#include "model.h"
+#include "scene.h"
 
 using namespace rapidjson;
 using namespace std;
@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
 
     //// Load a mesh in OFF format
     //igl::readOFF("bunny.off", V, F);
+    scene fscene;
     model fmodel;
     // Init the viewer
     igl::opengl::glfw::Viewer viewer;
@@ -54,12 +55,18 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Load##Scene", ImVec2((w - p) / 2.f, 0)))
             {
-                viewer.load_scene();
+                cout << "please select one jaw..." << endl;
+                string fpath_1 = viewer.open_dialog_load_mesh();
+                cout << "please select the other jaw in the same pair..." << endl;
+                string fpath_2 = viewer.open_dialog_load_mesh();
+                if (fpath_1 != "false" && fpath_2 != "false")
+                    fscene = scene(fpath_1, fpath_2);
+                //viewer.load_scene();
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Scene", ImVec2((w - p) / 2.f, 0)))
             {
-                viewer.save_scene();
+                //viewer.save_scene();
             }
         }
         // Model
@@ -155,74 +162,54 @@ int main(int argc, char *argv[]) {
         {
             float w = ImGui::GetContentRegionAvail().x;
             float p = ImGui::GetStyle().FramePadding.x;
-            if (ImGui::Button("Segment & completion##Functions", ImVec2((w - p), 0)))
+            if (ImGui::Button("Segment & Arrangement##Functions", ImVec2((w - p), 0)))
             {
-                cout << "Segment and completion..." << endl;
-
-                string result_stl, error_msg;
-                map<string, string> result_t_comp_stl;
-                vector<int> result_label;
-
-                if (!fmodel.segment_jaw(result_stl, result_t_comp_stl, result_label, error_msg)) {
-                    cout << error_msg << endl;
+                cout << "===============Segment and Arrangement...===============" << endl;
+                //fscene.segment_jaws();
+                if (!fscene.segment_jaws())
                     return 1;
-                }
-
-                fmodel.set_teeth_comp(result_t_comp_stl);
 
                 string result_dir = PROJECT_PATH + string("/result");
-                auto result_dir_path = fs::path(result_dir);
 
-                if (!fs::is_directory(result_dir_path)) {
-                    fs::create_directory(result_dir_path);
-                }
-
-                ofstream ofs;
-                string res_mesh_name = result_dir + string("/seg_") + fmodel.stl_name() + string(".stl");
-                ofs.open(res_mesh_name, ofstream::out | ofstream::binary);
-                ofs << result_stl;
-                ofs.close();
-
-
-                for (auto stl : result_t_comp_stl) {
+                for (auto stl : fscene.get_teeth_comp()) {
                     ofstream ofs;
-                    string comp_name = result_dir + string("/seg_") + fmodel.stl_name() + string("_comp_") + stl.first + string(".stl");
+                    string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + stl.first + string(".stl");
                     ofs.open(comp_name, ofstream::out | ofstream::binary);
                     ofs << stl.second;
                     ofs.close();
 
                     viewer.load_mesh_from_file(comp_name.c_str(), false);
-                    fmodel.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
-                    fmodel.mesh_add_tooth(viewer.data().id, stl.first);
+                    fscene.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
+                    fscene.mesh_add_tooth(viewer.data().id, stl.first);
 
                     viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, stl.first);
                 }
 
                 viewer.erase_mesh(0);
-
+                viewer.erase_mesh(0);
                 viewer.callback_pre_draw =
                     [&](igl::opengl::glfw::Viewer&)
                 {
                     //int cur_idx = viewer.selected_data_index;
                     //cout << "cur index:" << viewer.selected_data_index << endl;
-                    if (fmodel.last_selected != viewer.selected_data_index)
+                    if (fscene.last_selected != viewer.selected_data_index)
                     {
                         
                         int cur_id = viewer.data_list[viewer.selected_data_index].id;
                         //cout << "cur_id:" << cur_id << endl;
-                        if (!fmodel.mesh_is_tooth(cur_id)) {
+                        if (!fscene.mesh_is_tooth(cur_id)) {
                             //cout << "round" << endl;
-                            if (cur_id > fmodel.mesh_max_tooth_id())
-                                viewer.selected_data_index = viewer.mesh_index(fmodel.mesh_min_tooth_id());
+                            if (cur_id > fscene.mesh_max_tooth_id())
+                                viewer.selected_data_index = viewer.mesh_index(fscene.mesh_min_tooth_id());
                             else
-                                viewer.selected_data_index = viewer.mesh_index(fmodel.mesh_max_tooth_id());
+                                viewer.selected_data_index = viewer.mesh_index(fscene.mesh_max_tooth_id());
                         }
 
                         for (auto& data : viewer.data_list) {
-                                data.set_colors(fmodel.get_color(data.id));
+                                data.set_colors(fscene.get_color(data.id));
                         }
-                        viewer.data_list[viewer.selected_data_index].set_colors(fmodel.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
-                        fmodel.last_selected = viewer.selected_data_index;
+                        viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
+                        fscene.last_selected = viewer.selected_data_index;
                     }
                     return false;
                 };
@@ -247,9 +234,9 @@ int main(int argc, char *argv[]) {
                             data.F,
                             fid,
                             bc) 
-                            && fmodel.mesh_is_tooth(data.id)
+                            && fscene.mesh_is_tooth(data.id)
                             ) {
-                            std::cout << "You clicked on tooth #" << fmodel.get_tooth_label(viewer.data().id) << std::endl;
+                            std::cout << "You clicked on tooth #" << fscene.get_tooth_label(viewer.data().id) << std::endl;
                             viewer.selected_data_index = viewer.mesh_index(data.id);
                             return true;
                         }
@@ -268,45 +255,27 @@ int main(int argc, char *argv[]) {
                         ImGuiWindowFlags_NoSavedSettings
                     );
 
-                    ImGui::Text((string("Tooth Label: ") + fmodel.get_tooth_label(viewer.data().id)).c_str());
+                    ImGui::Text((string("Tooth Label: ") + fscene.get_tooth_label(viewer.data().id)).c_str());
 
                     ImGui::End();
                 };
 
-                string res_label_name = result_dir + string("/seg_") + fmodel.stl_name() + string(".txt");
-                ofs.open(res_label_name, ofstream::out);
-                for (const auto& e : result_label) ofs << e << endl;
-                ofs.close();
-
-                cout << "Segment and completion complete." << endl;
+                cout << "===============Segment and Arrangement complete.===============" << endl;
             }
 
             if (ImGui::Button("Generate gum##Functions", ImVec2((w - p), 0)))
             {
-                cout << "Gum generating..." << endl;
-                
-                string result_ply, error_msg;
+                cout << "===============Gum generating...===============" << endl;
 
-                if (!fmodel.generate_gum(result_ply, error_msg)) {
-                    cout << error_msg << endl;
+                if (!fscene.generate_gums())
                     return 1;
-                }
-                string result_dir = PROJECT_PATH + string("/result");
-                auto result_dir_path = fs::path(result_dir);
 
-                if (!fs::is_directory(result_dir_path)) {
-                    fs::create_directory(result_dir_path);
-                }
+                viewer.load_mesh_from_file(fscene.upper_gum_path.c_str(), false);
+                fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
+                viewer.load_mesh_from_file(fscene.lower_gum_path.c_str(), false);
+                fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
 
-                ofstream ofs;
-                string res_mesh_name = result_dir + string("/") + fmodel.stl_name() + string("_gum.ply");
-                ofs.open(res_mesh_name, ofstream::out | ofstream::binary);
-                ofs << result_ply;
-                ofs.close();
-
-                viewer.load_mesh_from_file(res_mesh_name.c_str(), false);
-                fmodel.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
-                cout << "Gum generation complete." << endl;
+                cout << "===============Gum generation complete.===============" << endl;
             }
         }
 
