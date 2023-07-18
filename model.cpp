@@ -13,7 +13,7 @@ model::model(string fpath) {
     stringstream ss(fname);
     getline(ss, fname, '.');
 
-    cout << "file name is: " << fname << endl;
+    //cout << "file name is: " << fname << endl;
 
     //char jaw_type = 'L';
     if (jaw_type == 'L' || jaw_type == 'l') {
@@ -29,7 +29,7 @@ model::model(string fpath) {
     last_selected = -1;
 }
 
-bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<int>& label_, string& error_msg_) {
+bool model::segment_jaw(string& stl_, vector<int>& label_, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
         Output:
             stl_: string containing preprocessed mesh data in STL format. This can directly be saved as *.stl file
@@ -122,8 +122,9 @@ bool model::segment_jaw(string& stl_, map<string, string>& t_comp_stls_, vector<
         teeth_axis.insert(pair<string, vector<vector<double>>>(v.name.GetString(), axis));
     }
 
-    download_t_comp_mesh(document_result, t_comp_stls_);
+    download_t_comp_mesh(document_result, teeth_comp_stl);
 
+    //teeth_comp_stl = t_comp_stls_;
 
     return true;
 }
