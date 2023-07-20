@@ -84,7 +84,7 @@ bool scene::segment_jaws() {
     ofs.open(res_label_name, ofstream::out);
     for (const auto& e : result_label) ofs << e << endl;
 
-    cout << "=============jaw segment complete.Now start arranegmet...===============" << endl;
+    cout << "=============jaw segment complete.Now start arrangement...===============" << endl;
 
     cpr::Response r;
     Document input_data(kObjectType);
@@ -175,11 +175,14 @@ bool scene::generate_gums() {
     if (!fs::is_directory(result_dir_path))
         fs::create_directory(result_dir_path);
 
+    Document document_result;
     string result_ply, error_msg;
-    if (!upper_jaw_model.generate_gum(result_ply, error_msg)) {
+    if (!upper_jaw_model.generate_gum(document_result, result_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
+
+    upper_jaw_model.gum_deform(document_result);
 
     ofstream ofs;
     string res_mesh_name = result_dir + string("/") + upper_jaw_model.stl_name() + string("_gum.ply");
@@ -191,7 +194,7 @@ bool scene::generate_gums() {
 
     cout << "upper gum generation complete..." << endl;
 
-    if (!lower_jaw_model.generate_gum(result_ply, error_msg)) {
+    if (!lower_jaw_model.generate_gum(document_result, result_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
@@ -204,7 +207,6 @@ bool scene::generate_gums() {
     lower_gum_path = res_mesh_name;
 
     cout << "lower gum generation complete..." << endl;
-
 
     return true;
 }

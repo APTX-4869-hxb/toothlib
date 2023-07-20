@@ -165,7 +165,11 @@ bool get_job_result(string job_id, Document& document_result, string& error_msg_
 }
 
 string download_mesh(Document& document_result, string & stl_, const char* object) {
-    string download_urn = document_result[object]["data"].GetString();
+    string download_urn;
+    if(!strcmp("gum", object))
+        download_urn = document_result["result"][object]["data"].GetString();
+    else
+        download_urn = document_result[object]["data"].GetString();
 
     cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
         cpr::Header{ {"X-ZH-TOKEN", USER_TOKEN} }, cpr::VerifySsl(0));

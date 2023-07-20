@@ -15,7 +15,6 @@
 #include <thread>
 #include <utility>
 
-
 #include "cpr/cpr.h"
 #include "api.h"
 #include "scene.h"

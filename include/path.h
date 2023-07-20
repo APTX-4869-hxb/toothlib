@@ -1,1 +1,1 @@
-#define PROJECT_PATH "D:/GAPS/toothlib_new"
+#define PROJECT_PATH "D:/GAPS/toothlib"

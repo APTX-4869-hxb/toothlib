@@ -6,8 +6,16 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include "rapidjson/document.h"
+#include "rapidjson/allocators.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+#include "chohotech_gum_deform.h"
 #include "cpr/cpr.h"
 
+#undef GetObject
+
+using namespace rapidjson;
 using namespace std;
 namespace fs = std::filesystem;
 
@@ -25,6 +33,12 @@ private:
     map<string, string> teeth_comp_stl_urn;
     string gum_urn;
     string gum_ply;
+    //std::vector<std::vector<double>> gum_vertices;
+    //std::vector<std::vector<int>> gum_faces;
+    double* gum_vertices_ptr;
+    int* gum_faces_ptr;
+    void *gum_deformer_ptr;
+    ToothTransformation tt[40];
     map<string, vector<vector<double>>> teeth_axis;
 public:
 
@@ -35,7 +49,8 @@ public:
     ~model();
     
     bool segment_jaw(string& stl_, vector<int>& label_, string& error_msg_);
-    bool model::generate_gum(string& ply_, string& error_msg_);
+    bool generate_gum(Document& document_result, string& ply_, string& error_msg_);
+    bool gum_deform(Document& document_result);
 
     inline string stl_path() { return stl_file_path; };
     inline string stl_name() { return fname; };
