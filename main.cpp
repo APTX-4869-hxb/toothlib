@@ -161,11 +161,21 @@ int main(int argc, char *argv[]) {
         {
             float w = ImGui::GetContentRegionAvail().x;
             float p = ImGui::GetStyle().FramePadding.x;
-            if (ImGui::Button("Segment & Arrangement##Functions", ImVec2((w - p), 0)))
+            if (ImGui::Button("Segment##Functions", ImVec2((w - p), 0)))
             {
-                cout << "===============Segment and Arrangement...===============" << endl;
+                cout << "===============Segment...===============" << endl;
                 //fscene.segment_jaws();
                 if (!fscene.segment_jaws())
+                    return 1;
+
+                cout << "===============Segment complete.===============" << endl;
+            }
+
+            if (ImGui::Button("Arrangement##Functions", ImVec2((w - p), 0)))
+            {
+                cout << "===============Arrangement...===============" << endl;
+
+                if (!fscene.arrangement())
                     return 1;
 
                 string result_dir = PROJECT_PATH + string("/result");
@@ -193,7 +203,7 @@ int main(int argc, char *argv[]) {
                     //cout << "cur index:" << viewer.selected_data_index << endl;
                     if (fscene.last_selected != viewer.selected_data_index)
                     {
-                        
+
                         int cur_id = viewer.data_list[viewer.selected_data_index].id;
                         //cout << "cur_id:" << cur_id << endl;
                         if (!fscene.mesh_is_tooth(cur_id)) {
@@ -205,7 +215,7 @@ int main(int argc, char *argv[]) {
                         }
 
                         for (auto& data : viewer.data_list) {
-                                data.set_colors(fscene.get_color(data.id));
+                            data.set_colors(fscene.get_color(data.id));
                         }
                         viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
                         fscene.last_selected = viewer.selected_data_index;
@@ -232,7 +242,7 @@ int main(int argc, char *argv[]) {
                             data.V,
                             data.F,
                             fid,
-                            bc) 
+                            bc)
                             && fscene.mesh_is_tooth(data.id)
                             ) {
                             std::cout << "You clicked on tooth #" << fscene.get_tooth_label(viewer.data().id) << std::endl;
@@ -248,18 +258,18 @@ int main(int argc, char *argv[]) {
                 {
                     // Define next window position + size
                     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiCond_FirstUseEver);
-                    ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiCond_FirstUseEver);
+                    ImGui::SetNextWindowSize(ImVec2(400, 250), ImGuiCond_FirstUseEver);
                     ImGui::Begin(
                         "Tooth", nullptr,
                         ImGuiWindowFlags_NoSavedSettings
                     );
 
-                    ImGui::Text((string("Tooth Label: ") + fscene.get_tooth_label(viewer.data().id)).c_str());
+                    ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
 
                     ImGui::End();
                 };
 
-                cout << "===============Segment and Arrangement complete.===============" << endl;
+                cout << "===============Arrangement complete.===============" << endl;
             }
 
             if (ImGui::Button("Generate gum##Functions", ImVec2((w - p), 0)))

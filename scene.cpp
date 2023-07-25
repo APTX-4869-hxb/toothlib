@@ -84,8 +84,92 @@ bool scene::segment_jaws() {
     ofs.open(res_label_name, ofstream::out);
     for (const auto& e : result_label) ofs << e << endl;
 
-    cout << "=============jaw segment complete.Now start arrangement...===============" << endl;
+    cout << "lower jaw segment complete..." << endl;
 
+    //cpr::Response r;
+    //Document input_data(kObjectType);
+    //Document input_data_upper_mesh_config(kObjectType);
+    //Document input_data_lower_mesh_config(kObjectType);
+    //Document output_config(kObjectType);
+    //Document output_config_comp_mesh(kObjectType);
+    //Document request_body(kObjectType);
+    //Document document;
+    //Document document_result;
+
+    //// Step 1. make input
+    //// Step 1.1 upload to file server
+
+    //add_string_member(input_data_upper_mesh_config, "type", "stl");
+    //add_string_member(input_data_upper_mesh_config, "data", upper_jaw_model.stl_urn());
+    //input_data.AddMember(
+    //    "upper_mesh",
+    //    input_data_upper_mesh_config,
+    //    input_data.GetAllocator());
+
+    //add_string_member(input_data_lower_mesh_config, "type", "stl");
+    //add_string_member(input_data_lower_mesh_config, "data", lower_jaw_model.stl_urn());
+    //input_data.AddMember(
+    //    "lower_mesh",
+    //    input_data_lower_mesh_config,
+    //    input_data.GetAllocator());
+    ////cout << dump_json(input_data) << endl;
+
+    //add_string_member(output_config_comp_mesh, "type", "stl");
+    //output_config.AddMember(
+    //    "teeth_comp",
+    //    output_config_comp_mesh,
+    //    output_config.GetAllocator());
+
+    //map<string, string> spec;
+    //spec.insert(pair<string, string>("spec_group", "mesh-processing"));
+    //spec.insert(pair<string, string>("spec_name", "oral-arrangement"));
+    //spec.insert(pair<string, string>("spec_version", "1.0-snapshot"));
+
+    //// Step 1.2 config request
+    //config_request(spec, input_data, output_config, request_body);
+
+    //// Step 2. submit job
+    //string job_id = submit_job(document, request_body, error_msg);
+    //if (job_id == "false")
+    //    return false;
+
+    //// Step 3. check job
+    //if (!check_job(job_id, error_msg))
+    //    return false;
+
+    //// Step 4. get job result
+    //if (!get_job_result(job_id, document_result, error_msg))
+    //    return false;
+
+    ////cout << dump_json(document_result) << endl;
+    ////return false;
+
+    //// Step 5 download mesh
+
+    //for (auto& v : document_result["teeth_comp"].GetObjectA())
+    //    teeth_comp_stl_urn.insert(pair<string, string>(v.name.GetString(), v.value["data"].GetString()));
+
+    //download_t_comp_mesh(document_result, teeth_comp_stl);
+
+    //map<string, string> upper_comp_stl_urn;
+    //map<string, string> lower_comp_stl_urn;
+
+    //for (auto teeth_urn : teeth_comp_stl_urn) {
+    //    if (teeth_urn.first[0] == '3' || teeth_urn.first[0] == '4' || teeth_urn.first[0] == '7' || teeth_urn.first[0] == '8' || (atoi(teeth_urn.first.c_str()) > 94) && (atoi(teeth_urn.first.c_str()) < 99)) {
+    //        lower_comp_stl_urn.insert(teeth_urn);
+    //    }
+    //    else if (teeth_urn.first[0] == '1' || teeth_urn.first[0] == '2' || teeth_urn.first[0] == '5' || teeth_urn.first[0] == '6' || (atoi(teeth_urn.first.c_str()) > 90) && (atoi(teeth_urn.first.c_str()) < 95))
+    //        upper_comp_stl_urn.insert(teeth_urn);
+    //}
+    //upper_jaw_model.set_teeth_comp_urn(upper_comp_stl_urn);
+    //lower_jaw_model.set_teeth_comp_urn(lower_comp_stl_urn);
+
+    return true;
+}
+
+bool scene::arrangement() {
+    //cout << "=============jaw segment complete.Now start arrangement...===============" << endl;
+    string error_msg;
     cpr::Response r;
     Document input_data(kObjectType);
     Document input_data_upper_mesh_config(kObjectType);
@@ -130,16 +214,20 @@ bool scene::segment_jaws() {
 
     // Step 2. submit job
     string job_id = submit_job(document, request_body, error_msg);
-    if (job_id == "false")
+    if (job_id == "false") {
+        cout << error_msg << endl;
         return false;
-
+    }
     // Step 3. check job
-    if (!check_job(job_id, error_msg))
+    if (!check_job(job_id, error_msg)) {
+        cout << error_msg << endl;
         return false;
-
+    }
     // Step 4. get job result
-    if (!get_job_result(job_id, document_result, error_msg))
+    if (!get_job_result(job_id, document_result, error_msg)) {
+        cout << error_msg << endl;
         return false;
+    }
 
     //cout << dump_json(document_result) << endl;
     //return false;

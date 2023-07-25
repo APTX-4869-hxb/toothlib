@@ -35,6 +35,7 @@ public:
 	~scene();
 
 	bool segment_jaws();
+	bool arrangement();
 	bool generate_gums();
 	inline string stl_name() { return fname; };
 	inline map<string, string> get_teeth_comp() { return teeth_comp_stl; };
@@ -42,7 +43,7 @@ public:
 	inline bool mesh_is_tooth(int id) { if (find(teeth_id.begin(), teeth_id.end(), id) != teeth_id.end()) return true; else false; };
 	inline int mesh_max_tooth_id() { return *max_element(teeth_id.begin(), teeth_id.end()); };
 	inline int mesh_min_tooth_id() { return *min_element(teeth_id.begin(), teeth_id.end()); };
-	inline string get_tooth_label(int id) { return teeth_id_label_map[id]; }
+	inline string& get_tooth_label(int id) { return teeth_id_label_map[id]; }
 	inline void set_colors(int id, Eigen::RowVector3d color) { colors.emplace(id, color); };
 	inline Eigen::RowVector3d get_color(int id) { return colors[id]; };
 };
