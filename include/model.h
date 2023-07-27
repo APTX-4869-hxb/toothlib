@@ -30,7 +30,7 @@ private:
     map<int, string> teeth_id_label_map;
     map<int, Eigen::RowVector3d> colors;
     //map<string, string> teeth_comp_stl;
-    map<string, string> teeth_comp_stl_urn;
+    map<string, string> teeth_comp_ply_urn;
     string gum_urn;
     string gum_ply;
     //std::vector<std::vector<double>> gum_vertices;
@@ -39,16 +39,16 @@ private:
     int* gum_faces_ptr;
     void *gum_deformer_ptr;
     ToothTransformation tt[40];
-    map<string, vector<vector<double>>> teeth_axis;
 public:
 
     int last_selected;
+    //map<string, vector<vector<float>>> teeth_axis;
 
     model();
     model(string fpath);
     ~model();
     
-    bool segment_jaw(string& stl_, vector<int>& label_, string& error_msg_);
+    bool segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, string& error_msg_);
     bool generate_gum(Document& document_result, string& ply_, string& error_msg_);
     bool gum_deform(Document& document_result);
 
@@ -59,7 +59,7 @@ public:
     inline char stl_jaw_type() { return jaw_type; };
     inline void set_colors(int id, Eigen::RowVector3d color) { colors.emplace(id, color); };
     inline Eigen::RowVector3d get_color(int id) { return colors[id]; };
-    inline void set_teeth_comp_urn(map<string, string> stl_urn) { teeth_comp_stl_urn = stl_urn; };
+    inline void set_teeth_comp_urn(map<string, string> ply_urn) { teeth_comp_ply_urn = ply_urn; };
     //inline map<string, string> get_teeth_comp() { return teeth_comp_stl; };
     inline void mesh_add_tooth(int id, string label) { teeth_id.push_back(id); teeth_id_label_map.insert(pair<int, string>(id, label)); };
     inline bool mesh_is_tooth(int id) { if (find(teeth_id.begin(), teeth_id.end(), id) != teeth_id.end()) return true; else false; };

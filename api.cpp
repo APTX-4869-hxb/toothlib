@@ -184,9 +184,9 @@ void download_label(Document& document_result, vector<int>& label_) {
     for (auto& v : document_result["seg_labels"].GetArray()) label_.push_back(v.IsInt() ? v.GetInt() : (int)(v.GetDouble() + 0.1));
 }
 
-void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_) {
+void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_, const char* object) {
 
-    for (auto& v : document_result["teeth_comp"].GetObject()) {
+    for (auto& v : document_result[object].GetObject()) {
         string download_urn = v.value["data"].GetString();
 
         cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },

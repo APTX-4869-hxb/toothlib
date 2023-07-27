@@ -30,7 +30,7 @@ model::model(string fpath) {
     last_selected = -1;
 }
 
-bool model::segment_jaw(string& stl_, vector<int>& label_, string& error_msg_) {
+bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
         Output:
             stl_: string containing preprocessed mesh data in STL format. This can directly be saved as *.stl file
@@ -103,14 +103,14 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, string& error_msg_) {
     stl_file_urn = urn;
     
     for (auto& v : document_result["axis"].GetObject()) {
-        vector<vector<double>> axis;
+        vector<vector<float>> axis;
         for (int i = 0; i < v.value.Size(); i++) {
-            vector<double> axis_line;
+            vector<float> axis_line;
             for (int j = 0; j < v.value[i].Size(); j++) 
                 axis_line.push_back(v.value[i][j].GetDouble());
             axis.push_back(axis_line);
         }
-        teeth_axis.insert(pair<string, vector<vector<double>>>(v.name.GetString(), axis));
+        teeth_axis.insert(pair<string, vector<vector<float>>>(v.name.GetString(), axis));
     }
 
     return true;
@@ -139,10 +139,12 @@ bool model::generate_gum(Document& document_result, string& ply_, string& error_
     // Step 1. make input
 
     int i = 0;
-    for (auto& t : teeth_comp_stl_urn) {
+    for (auto& t : teeth_comp_ply_urn) {
+        //cout << t.first << endl;
+        //cout << t.second << endl;
         input_data_urn.push_back(new Document((kObjectType)));
         Document* cur = input_data_urn[i];
-        add_string_member(*cur, "type", "stl");
+        add_string_member(*cur, "type", "ply");
         add_string_member(*cur, "data", t.second);
         Value name;
         name.SetString(t.first.c_str(), (*cur).GetAllocator());

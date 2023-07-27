@@ -4,6 +4,8 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
 #include <igl/readOFF.h>
+#include <igl/PI.h>
+
 #include <iostream>
 
 #include <fstream>
@@ -16,6 +18,7 @@
 #include <utility>
 
 #include "cpr/cpr.h"
+#include "utils.h"
 #include "api.h"
 #include "scene.h"
 
@@ -43,7 +46,7 @@ int main(int argc, char *argv[]) {
     igl::opengl::glfw::imgui::ImGuiMenu menu;
     plugin.widgets.push_back(&menu);
 
-
+    int pose_dirty = 0;
 
     menu.callback_draw_viewer_menu = [&]()
     {
@@ -54,9 +57,9 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Load##Scene", ImVec2((w - p) / 2.f, 0)))
             {
-                cout << "please select one jaw..." << endl;
+                std::cout << "please select one jaw..." << endl;
                 string fpath_1 = viewer.open_dialog_load_mesh();
-                cout << "please select the other jaw in the same pair..." << endl;
+                std::cout << "please select the other jaw in the same pair..." << endl;
                 string fpath_2 = viewer.open_dialog_load_mesh();
                 if (fpath_1 != "false" && fpath_2 != "false")
                     fscene = scene(fpath_1, fpath_2);
@@ -163,36 +166,38 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Segment##Functions", ImVec2((w - p), 0)))
             {
-                cout << "===============Segment...===============" << endl;
+                std::cout << "===============Segment...===============" << endl;
                 //fscene.segment_jaws();
                 if (!fscene.segment_jaws())
                     return 1;
 
-                cout << "===============Segment complete.===============" << endl;
+                std::cout << "===============Segment complete.===============" << endl;
             }
 
             if (ImGui::Button("Arrangement##Functions", ImVec2((w - p), 0)))
             {
-                cout << "===============Arrangement...===============" << endl;
+                std::cout << "===============Arrangement...===============" << endl;
 
                 if (!fscene.arrangement())
                     return 1;
 
                 string result_dir = PROJECT_PATH + string("/result");
 
-                for (auto stl : fscene.get_teeth_comp()) {
+                for (auto ply : fscene.get_teeth_comp()) {
                     ofstream ofs;
-                    string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + stl.first + string(".stl");
+                    string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + ply.first + string(".ply");
                     ofs.open(comp_name, ofstream::out | ofstream::binary);
-                    ofs << stl.second;
+                    ofs << ply.second;
                     ofs.close();
 
                     viewer.load_mesh_from_file(comp_name.c_str(), false);
                     fscene.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
-                    fscene.mesh_add_tooth(viewer.data().id, stl.first);
+                    fscene.mesh_add_tooth(viewer.data().id, ply.first);
 
-                    viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, stl.first);
+                    //viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, ply.first);
                 }
+
+                fscene.calc_poses();
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
@@ -253,28 +258,65 @@ int main(int argc, char *argv[]) {
                     return false;
                 };
 
+                //viewer.callback_post_draw = [&](igl::opengl::glfw::Viewer&) {
+                //    return true;
+                //};
+
                 // Draw additional windows
                 menu.callback_draw_custom_window = [&]()
                 {
                     // Define next window position + size
                     ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiCond_FirstUseEver);
-                    ImGui::SetNextWindowSize(ImVec2(400, 250), ImGuiCond_FirstUseEver);
+                    ImGui::SetNextWindowSize(ImVec2(200, 240), ImGuiCond_FirstUseEver);
                     ImGui::Begin(
                         "Tooth", nullptr,
                         ImGuiWindowFlags_NoSavedSettings
                     );
 
-                    ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
+                    if (fscene.mesh_is_tooth(viewer.data().id)) {
+                        string cur_tooth_label = fscene.get_tooth_label(viewer.data().id);
+                        vector<float> last_pose = fscene.poses[cur_tooth_label];
+                        ImGui::PushItemWidth(-80);
+                        ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
+                        ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.1, -50.0, 50.0);
+                        ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.1, -50.0, 50.0);
+                        ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.1, -50.0, 50.0);
+                        ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -2 * igl::PI, 2 * igl::PI);
+                        ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -2 * igl::PI, 2 * igl::PI);
+                        ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -2 * igl::PI, 2 * igl::PI);
+                        ImGui::PopItemWidth();
 
+                        if (last_pose != fscene.poses[cur_tooth_label]) {
+                            vector<float> cur_pose = fscene.poses[cur_tooth_label];
+                            Eigen::Matrix4d cur_axis_inv_mat = poseToMatrix4d(cur_pose);
+                            Eigen::Matrix4d last_axis_inv_mat = poseToMatrix4d(last_pose);
+
+                            Eigen::Matrix4d P = cur_axis_inv_mat * last_axis_inv_mat.inverse();
+
+                            Eigen::Matrix3d R = P.block<3, 3>(0, 0);
+                            Eigen::Vector3d T = P.block<3, 1>(0, 3);
+
+                            Eigen::MatrixXd T_vertices(viewer.data().V.rows(), 3);
+
+                            for (int i = 0; i < T_vertices.rows(); i++)
+                                for (int j = 0; j < 3; j++)
+                                    T_vertices(i, j) = T[j];
+
+                            fscene.teeth_axis[cur_tooth_label] = matrix4dToVector(cur_axis_inv_mat.inverse());
+                            
+                            viewer.data().set_vertices((R * viewer.data().V.transpose() + T_vertices.transpose()).transpose());
+
+                        }
+
+                    }
                     ImGui::End();
                 };
-
-                cout << "===============Arrangement complete.===============" << endl;
+                std::cout << "===============Arrangement complete.===============" << endl;
             }
 
             if (ImGui::Button("Generate gum##Functions", ImVec2((w - p), 0)))
             {
-                cout << "===============Gum generating...===============" << endl;
+                std::cout << "===============Gum generating...===============" << endl;
 
                 if (!fscene.generate_gums())
                     return 1;
@@ -284,7 +326,7 @@ int main(int argc, char *argv[]) {
                 viewer.load_mesh_from_file(fscene.lower_gum_path.c_str(), false);
                 fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
 
-                cout << "===============Gum generation complete.===============" << endl;
+                std::cout << "===============Gum generation complete.===============" << endl;
             }
         }
 
