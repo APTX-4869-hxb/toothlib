@@ -242,8 +242,8 @@ bool scene::calc_poses() {
     for (auto axis : teeth_axis) {
 
         Eigen::Matrix4d pose_matrix_eigen = vectorToMatrix4d(axis.second);
-        Eigen::Matrix3d R = pose_matrix_eigen.inverse().block<3, 3>(0, 0);
-        Eigen::Vector3d T = pose_matrix_eigen.inverse().block<3, 1>(0, 3);
+        Eigen::Matrix3d R = pose_matrix_eigen.block<3, 3>(0, 0);
+        Eigen::Vector3d T = pose_matrix_eigen.block<3, 1>(0, 3);
         Eigen::Vector3d euler_angles = R.eulerAngles(2, 1, 0); // 获取欧拉角，这里的顺序为 ZYX
         vector<float> pose = { float(T[0]), float(T[1]), float(T[2]), float(euler_angles[2]), float(euler_angles[1]), float(euler_angles[0]) };
         poses.insert(pair<string, vector<float>>(axis.first, pose));

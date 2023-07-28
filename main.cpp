@@ -194,10 +194,17 @@ int main(int argc, char *argv[]) {
                     fscene.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
                     fscene.mesh_add_tooth(viewer.data().id, ply.first);
 
+                    //set axis centroid
+                    Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
+                    for(int i = 0; i < 3; i++)
+                        fscene.teeth_axis[ply.first][i][3] = centroid[i];
                     //viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, ply.first);
                 }
 
                 fscene.calc_poses();
+
+                cout << fscene.teeth_axis["31"][0][3] << " " << fscene.teeth_axis["31"][1][3] << " " << fscene.teeth_axis["31"][2][3] << endl;
+                cout << fscene.poses["31"][0] << " " << fscene.poses["31"][1] << " " << fscene.poses["31"][2] << endl;
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
@@ -281,30 +288,23 @@ int main(int argc, char *argv[]) {
                         ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.1, -50.0, 50.0);
                         ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.1, -50.0, 50.0);
                         ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.1, -50.0, 50.0);
-                        ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -2 * igl::PI, 2 * igl::PI);
-                        ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -2 * igl::PI, 2 * igl::PI);
-                        ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -2 * igl::PI, 2 * igl::PI);
+                        ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -igl::PI, igl::PI);
+                        ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -igl::PI, igl::PI);
+                        ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -igl::PI, igl::PI);
                         ImGui::PopItemWidth();
 
                         if (last_pose != fscene.poses[cur_tooth_label]) {
                             vector<float> cur_pose = fscene.poses[cur_tooth_label];
-                            Eigen::Matrix4d cur_axis_inv_mat = poseToMatrix4d(cur_pose);
-                            Eigen::Matrix4d last_axis_inv_mat = poseToMatrix4d(last_pose);
+                            Eigen::Matrix4d cur_axis_mat = poseToMatrix4d(cur_pose);
+                            Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
 
-                            Eigen::Matrix4d P = cur_axis_inv_mat * last_axis_inv_mat.inverse();
+                            Eigen::Matrix4d P = cur_axis_mat * last_axis_mat.inverse();
 
-                            Eigen::Matrix3d R = P.block<3, 3>(0, 0);
-                            Eigen::Vector3d T = P.block<3, 1>(0, 3);
+                            Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
+                            Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
+                            viewer.data().set_vertices(new_V);
 
-                            Eigen::MatrixXd T_vertices(viewer.data().V.rows(), 3);
-
-                            for (int i = 0; i < T_vertices.rows(); i++)
-                                for (int j = 0; j < 3; j++)
-                                    T_vertices(i, j) = T[j];
-
-                            fscene.teeth_axis[cur_tooth_label] = matrix4dToVector(cur_axis_inv_mat.inverse());
-                            
-                            viewer.data().set_vertices((R * viewer.data().V.transpose() + T_vertices.transpose()).transpose());
+                            fscene.teeth_axis[cur_tooth_label] = matrix4dToVector(cur_axis_mat);
 
                         }
 
