@@ -1,3 +1,4 @@
+#include <utils.h>
 #include <model.h>
 #include <api.h>
 #include <Windows.h>
@@ -30,7 +31,7 @@ model::model(string fpath) {
     last_selected = -1;
 }
 
-bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, string& error_msg_) {
+bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
         Output:
             stl_: string containing preprocessed mesh data in STL format. This can directly be saved as *.stl file
@@ -46,7 +47,7 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
     Document input_data_mesh_config(kObjectType);
     Document output_config(kObjectType);
     Document output_config_mesh(kObjectType);
-    //Document output_config_comp_mesh(kObjectType);
+    Document output_config_comp_mesh(kObjectType);
     //Document output_config_axis(kObjectType);
     Document request_body(kObjectType);
     Document document;
@@ -75,9 +76,15 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
         output_config_mesh,
         output_config.GetAllocator());
 
+    add_string_member(output_config_comp_mesh, "type", "ply");
+    output_config.AddMember(
+        "teeth_comp",
+        output_config_comp_mesh,
+        output_config.GetAllocator());
+
     map<string, string> spec;
     spec.insert(pair<string, string>("spec_group", "mesh-processing"));
-    spec.insert(pair<string, string>("spec_name", "oral-seg-and-axis"));
+    spec.insert(pair<string, string>("spec_name", "oral-comp-and-axis"));
     spec.insert(pair<string, string>("spec_version", "1.0-snapshot"));
 
     // Step 1.2 config request
@@ -102,6 +109,14 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
 
     stl_file_urn = urn;
     
+    for (auto& v : document_result["teeth_comp"].GetObject()) {
+        string download_urn = v.value["data"].GetString();
+        assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), download_urn);
+        //teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
+    }
+
+    download_t_comp_mesh(document_result, teeth_comp);
+
     for (auto& v : document_result["axis"].GetObject()) {
         vector<vector<float>> axis;
         for (int i = 0; i < v.value.Size(); i++) {

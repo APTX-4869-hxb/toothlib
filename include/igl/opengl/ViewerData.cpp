@@ -30,7 +30,7 @@ IGL_INLINE igl::opengl::ViewerData::ViewerData()
   show_overlay_depth(~unsigned(0)),
   show_vertex_labels(0),
   show_face_labels  (0),
-  show_custom_labels(0),
+  show_custom_labels(~unsigned(0)),
   show_texture      (false),
   use_matcap        (false),
   point_size(30),

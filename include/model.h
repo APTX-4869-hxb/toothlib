@@ -48,7 +48,7 @@ public:
     model(string fpath);
     ~model();
     
-    bool segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, string& error_msg_);
+    bool segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_);
     bool generate_gum(Document& document_result, string& ply_, string& error_msg_);
     bool gum_deform(Document& document_result);
 

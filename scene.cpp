@@ -1,7 +1,7 @@
+#include <igl/readPLY.h>
 #include <utils.h>
 #include <scene.h>
 #include <api.h>
-
 
 scene::scene() {}
 
@@ -48,13 +48,14 @@ bool scene::segment_jaws() {
     string result_stl, error_msg;
     vector<int> result_label;
 
+
     string result_dir = PROJECT_PATH + string("/result");
     auto result_dir_path = fs::path(result_dir);
 
     if (!fs::is_directory(result_dir_path)) 
         fs::create_directory(result_dir_path);
 
-    if (!upper_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, error_msg)) {
+    if (!upper_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, teeth_comp_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
@@ -72,7 +73,7 @@ bool scene::segment_jaws() {
 
     cout << "upper jaw segment complete..." << endl;
 
-    if (!lower_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, error_msg)) {
+    if (!lower_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, teeth_comp_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
@@ -159,7 +160,8 @@ bool scene::arrangement() {
 
     for (auto& v : document_result["arranged_comp"].GetObjectA()) {
         string download_urn = v.value["data"].GetString();
-        teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
+        assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), download_urn);
+        //teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
     }
 
     download_t_comp_mesh(document_result, teeth_comp_ply, "arranged_comp");

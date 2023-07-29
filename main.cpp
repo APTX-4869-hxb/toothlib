@@ -3,6 +3,7 @@
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiPlugin.h>
+#include <igl/opengl/glfw/imgui/ImGuizmoWidget.h>
 #include <igl/readOFF.h>
 #include <igl/PI.h>
 
@@ -170,17 +171,6 @@ int main(int argc, char *argv[]) {
                 //fscene.segment_jaws();
                 if (!fscene.segment_jaws())
                     return 1;
-
-                std::cout << "===============Segment complete.===============" << endl;
-            }
-
-            if (ImGui::Button("Arrangement##Functions", ImVec2((w - p), 0)))
-            {
-                std::cout << "===============Arrangement...===============" << endl;
-
-                if (!fscene.arrangement())
-                    return 1;
-
                 string result_dir = PROJECT_PATH + string("/result");
 
                 for (auto ply : fscene.get_teeth_comp()) {
@@ -196,15 +186,16 @@ int main(int argc, char *argv[]) {
 
                     //set axis centroid
                     Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
-                    for(int i = 0; i < 3; i++)
+                    for (int i = 0; i < 3; i++)
                         fscene.teeth_axis[ply.first][i][3] = centroid[i];
-                    //viewer.data().add_label(viewer.data().V.row(viewer.data().V.size() / 6) + viewer.data().V_normals.row(viewer.data().V.size() / 6).normalized() * 0.5, ply.first);
+                    viewer.data().add_label(centroid + Eigen::Vector3d(0, 0, 1), ply.first);
+
+                    //// Add a 3D gizmo plugin
+                    //igl::opengl::glfw::imgui::ImGuizmoWidget gizmo;
+                    //plugin.widgets.push_back(&gizmo);
                 }
 
                 fscene.calc_poses();
-
-                cout << fscene.teeth_axis["31"][0][3] << " " << fscene.teeth_axis["31"][1][3] << " " << fscene.teeth_axis["31"][2][3] << endl;
-                cout << fscene.poses["31"][0] << " " << fscene.poses["31"][1] << " " << fscene.poses["31"][2] << endl;
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
@@ -257,7 +248,7 @@ int main(int argc, char *argv[]) {
                             bc)
                             && fscene.mesh_is_tooth(data.id)
                             ) {
-                            std::cout << "You clicked on tooth #" << fscene.get_tooth_label(viewer.data().id) << std::endl;
+                            std::cout << "You clicked on tooth #" << fscene.get_tooth_label(data.id) << std::endl;
                             viewer.selected_data_index = viewer.mesh_index(data.id);
                             return true;
                         }
@@ -311,6 +302,36 @@ int main(int argc, char *argv[]) {
                     }
                     ImGui::End();
                 };
+                std::cout << "===============Segment complete.===============" << endl;
+            }
+
+            if (ImGui::Button("Arrangement##Functions", ImVec2((w - p), 0)))
+            {
+                std::cout << "===============Arrangement...===============" << endl;
+
+                if (!fscene.arrangement())
+                    return 1;
+
+
+                for (auto& data : viewer.data_list) {
+                    Eigen::MatrixXd V; // Vertices
+                    Eigen::MatrixXi F; // Faces
+
+
+                    string FDI = fscene.get_tooth_label(data.id);
+
+                    ofstream ofs;
+                    string comp_name = string("tmp.ply");
+                    ofs.open(comp_name, ofstream::out | ofstream::binary);
+                    ofs << fscene.get_teeth_comp()[FDI];
+                    ofs.close();
+                    
+
+                    igl::readPLY("tmp.ply", V, F);
+                    data.clear();
+                    data.set_mesh(V, F);
+
+                }
                 std::cout << "===============Arrangement complete.===============" << endl;
             }
 
