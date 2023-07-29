@@ -330,7 +330,7 @@ int main(int argc, char *argv[]) {
                     igl::readPLY("tmp.ply", V, F);
                     data.clear();
                     data.set_mesh(V, F);
-
+                    data.set_colors(fscene.get_color(data.id));
                 }
                 std::cout << "===============Arrangement complete.===============" << endl;
             }
