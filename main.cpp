@@ -22,7 +22,7 @@
 #include "utils.h"
 #include "api.h"
 #include "scene.h"
-
+#include "NumPredictor.h"
 using namespace rapidjson;
 using namespace std;
 
@@ -302,6 +302,7 @@ int main(int argc, char *argv[]) {
                     }
                     ImGui::End();
                 };
+                fscene.teeth_axis_origin = fscene.teeth_axis;
                 std::cout << "===============Segment complete.===============" << endl;
             }
 
@@ -348,6 +349,13 @@ int main(int argc, char *argv[]) {
                 fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
 
                 std::cout << "===============Gum generation complete.===============" << endl;
+            }
+            if (ImGui::Button("PredictNumber##Functions", ImVec2((w - p), 0)))
+            {
+                std::cout << "===============Predict Staging Number...===============" << endl;
+                NumPredictor mlp_predictor;
+                mlp_predictor.Solution(fscene.teeth_axis_origin, fscene.teeth_axis);
+                std::cout << "===============predict complete.===============" << endl;
             }
         }
 

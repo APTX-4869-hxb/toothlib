@@ -41,8 +41,10 @@ list(PREPEND CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_LIST_DIR}/cmake/igl
     ${CMAKE_CURRENT_LIST_DIR}/cmake/find
     ${CMAKE_CURRENT_LIST_DIR}/cmake/recipes/external
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/libtorch
 )
-
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/libtorch")
+find_package(Torch REQUIRED)
 set_property(GLOBAL PROPERTY __igl_module_path ${CMAKE_MODULE_PATH})
 
 include(igl_add_library)
@@ -77,3 +79,4 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::glfw)
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::imgui)
+target_link_libraries(${PROJECT_NAME} PUBLIC "${TORCH_LIBRARIES}")
