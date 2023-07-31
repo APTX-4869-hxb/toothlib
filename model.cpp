@@ -1,7 +1,7 @@
 #include <utils.h>
 #include <model.h>
 #include <api.h>
-#include <Windows.h>
+
 
 model::model() {}
 
@@ -109,7 +109,7 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
 
     stl_file_urn = urn;
     
-    for (auto& v : document_result["teeth_comp"].GetObject()) {
+    for (auto& v : document_result["teeth_comp"].GetObjectA()) {
         string download_urn = v.value["data"].GetString();
         assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), download_urn);
         //teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
@@ -117,7 +117,7 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
 
     download_t_comp_mesh(document_result, teeth_comp);
 
-    for (auto& v : document_result["axis"].GetObject()) {
+    for (auto& v : document_result["axis"].GetObjectA()) {
         vector<vector<float>> axis;
         for (int i = 0; i < v.value.Size(); i++) {
             vector<float> axis_line;
@@ -209,25 +209,11 @@ bool model::generate_gum(Document& document_result, string& ply_, string& error_
     return true;
 }
 
-typedef int (WINAPI* CREATE_FUNC)(const double*, unsigned int,
-    const int*, unsigned int, const char*, unsigned int, void**);
-typedef int (WINAPI* DEFORM_FUNC)(void*,
-                          const ToothTransformation *,
-                          unsigned int,
-                          double *, unsigned int *,
-                          int *, unsigned int *,
-                          char *, unsigned int *);
-typedef void (WINAPI* DESTROY_FUNC)(void*);
 
-bool model::gum_deform(Document &document_result) {
 
-    HMODULE hdll;
-    hdll = LoadLibrary(("libchohotech_gum_deform_x64.dll"));
+bool model::create_gum_deformer(Document &document_result, HMODULE hdll) {
     
     CREATE_FUNC create_gum_deformer = (CREATE_FUNC)GetProcAddress(hdll, "create_gum_deformer");
-    DEFORM_FUNC deform = (DEFORM_FUNC)GetProcAddress(hdll, "deform");
-    DESTROY_FUNC destroy_gum_deformer = (DESTROY_FUNC)GetProcAddress(hdll, "destroy_gum_deformer");
-
 
     Document ori_gum_info;
     ori_gum_info.Parse(document_result["result"]["ori_gum_info"].GetString());
@@ -262,50 +248,5 @@ bool model::gum_deform(Document &document_result) {
     if (ret < 0) {
         cout << "failed" << endl;
     }
-
-    //// random rotation matrix
-    //Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-    //Eigen::AngleAxisd aa(Eigen::AngleAxisd(10, Eigen::Vector3d(0, 0, 1)));
-    //// R = aa.toRotationMatrix();
-    //cout << "rotation: \n" << R << endl;
-
-    //// assign tid to tt.tid
-    //tt[0].tid = 11;
-    //// assign rotation to tt.rotation
-    //copy(R.data(), R.data() + 9, tt[0].rotation);
-    //// assign translation to tt.translation
-    //tt[0].translation[0] = 200.;
-    //tt[0].translation[1] = 0.;
-    //tt[0].translation[2] = 0.;
-
-    //// deform
-    //unsigned int n_teeth = 1;       // number of transformed teeth, could be more than 1
-    //double* p_deformed_vertices = new double[300000];        // the returned deformed vertices
-    //int* p_deformed_faces = new int[300000];
-    //unsigned int deformed_vertices_len, deformed_faces_len;
-    //deform(gum_deformer_ptr,
-    //    tt,
-    //    n_teeth,
-    //    p_deformed_vertices, &deformed_vertices_len,
-    //    p_deformed_faces, &deformed_faces_len, NULL, NULL);
-
-    //cout << "deform" << endl;
-    //// get result
-    //std::vector<std::vector<double>> deformed_vertices(deformed_vertices_len / 3);
-    //for (int i = 0; i < deformed_vertices.size(); i++) {
-    //    deformed_vertices[i].push_back(p_deformed_vertices[i * 3]);
-    //    deformed_vertices[i].push_back(p_deformed_vertices[i * 3 + 1]);
-    //    deformed_vertices[i].push_back(p_deformed_vertices[i * 3 + 2]);
-    //}
-    //std::vector<std::vector<int>> deformed_faces(deformed_faces_len / 3);
-    //for (int i = 0; i < deformed_faces.size(); i++) {
-    //    deformed_faces[i].push_back(p_deformed_faces[i * 3]);
-    //    deformed_faces[i].push_back(p_deformed_faces[i * 3 + 1]);
-    //    deformed_faces[i].push_back(p_deformed_faces[i * 3 + 2]);
-    //}
-    //cout << "get result" << endl;
-    //// destroy
-    //destroy_gum_deformer(gum_deformer_ptr);
-    //cout << "destroy" << endl;
     return true;
 }

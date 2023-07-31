@@ -186,7 +186,7 @@ void download_label(Document& document_result, vector<int>& label_) {
 
 void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_, const char* object) {
 
-    for (auto& v : document_result[object].GetObject()) {
+    for (auto& v : document_result[object].GetObjectA()) {
         string download_urn = v.value["data"].GetString();
 
         cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
@@ -199,3 +199,4 @@ void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp
         //    t_comp_[v.name.GetString()] = string(r.text);
     }
 }
+

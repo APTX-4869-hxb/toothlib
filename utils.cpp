@@ -1,20 +1,38 @@
 #include <utils.h>
 
-Eigen::Matrix4d vectorToMatrix4d(const std::vector<std::vector<float>>& vec) {
-    Eigen::Matrix4d mat;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
+Eigen::MatrixXd vectorToMatrixXd(const std::vector<std::vector<float>>& vec) {
+    int row = vec.size();
+    int col = vec[0].size();
+    Eigen::MatrixXd mat(row, col);
+    for (int i = 0; i < row; ++i) {
+        for (int j = 0; j < col; ++j) {
             mat(i, j) = vec[i][j];
         }
     }
     return mat;
 }
 
-std::vector<std::vector<float>> matrix4dToVector(const Eigen::Matrix4d& mat) {
+Eigen::MatrixXi vectorToMatrixXi(const std::vector<std::vector<int>>& vec) {
+    int row = vec.size();
+    int col = vec[0].size();
+    Eigen::MatrixXi mat(row, col);
+    for (int i = 0; i < row; ++i) {
+        for (int j = 0; j < col; ++j) {
+            mat(i, j) = vec[i][j];
+        }
+    }
+    return mat;
+}
+
+
+std::vector<std::vector<float>> matrixXdToVector(const Eigen::MatrixXd& mat) {
     std::vector<std::vector<float>> vec;
-    for (int i = 0; i < 4; ++i) {
+    int row = mat.rows();
+    int col = mat.cols();
+
+    for (int i = 0; i < row; ++i) {
         std::vector<float> line;
-        for (int j = 0; j < 4; ++j) {
+        for (int j = 0; j < col; ++j) {
             line.push_back(float(mat(i, j)));
         }
         vec.push_back(line);
@@ -38,4 +56,3 @@ Eigen::Matrix4d poseToMatrix4d(std::vector<float> pose) {
 
     return pose_matrix;
 }
-

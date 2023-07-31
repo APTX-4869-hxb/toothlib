@@ -34,6 +34,11 @@ int main(int argc, char *argv[]) {
     //Eigen::MatrixXd V;
     //Eigen::MatrixXi F;
 
+    HMODULE hdll;
+    hdll = LoadLibrary(("libchohotech_gum_deform_x64.dll"));
+
+    DESTROY_FUNC destroy_gum_deformer = (DESTROY_FUNC)GetProcAddress(hdll, "destroy_gum_deformer");
+
     //// Load a mesh in OFF format
     //igl::readOFF("bunny.off", V, F);
     scene fscene;
@@ -188,7 +193,7 @@ int main(int argc, char *argv[]) {
                     Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
                     for (int i = 0; i < 3; i++)
                         fscene.teeth_axis[ply.first][i][3] = centroid[i];
-                    viewer.data().add_label(centroid + Eigen::Vector3d(0, 0, 1), ply.first);
+                    viewer.data().add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, ply.first);
 
                     //// Add a 3D gizmo plugin
                     //igl::opengl::glfw::imgui::ImGuizmoWidget gizmo;
@@ -223,6 +228,7 @@ int main(int argc, char *argv[]) {
                         viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
                         fscene.last_selected = viewer.selected_data_index;
                     }
+
                     return false;
                 };
 
@@ -255,10 +261,6 @@ int main(int argc, char *argv[]) {
                     }
                     return false;
                 };
-
-                //viewer.callback_post_draw = [&](igl::opengl::glfw::Viewer&) {
-                //    return true;
-                //};
 
                 // Draw additional windows
                 menu.callback_draw_custom_window = [&]()
@@ -295,10 +297,36 @@ int main(int argc, char *argv[]) {
                             Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
                             viewer.data().set_vertices(new_V);
 
-                            fscene.teeth_axis[cur_tooth_label] = matrix4dToVector(cur_axis_mat);
 
+                            fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
+                            //cout << "hhh" << endl;
+
+                            //if (fscene.has_gum) {
+                            //    string gum;
+                            //    vector<vector<float>> new_gum_v;
+                            //    vector<vector<int>> new_gum_f;
+
+                            //    if (cur_tooth_label[0] == '3' || cur_tooth_label[0] == '4' || cur_tooth_label[0] == '7' || cur_tooth_label[0] == '8' || (atoi(cur_tooth_label.c_str()) > 94) && (atoi(cur_tooth_label.c_str()) < 99))
+                            //        gum = "lower";
+                            //    else if (cur_tooth_label[0] == '1' || cur_tooth_label[0] == '2' || cur_tooth_label[0] == '5' || cur_tooth_label[0] == '6' || (atoi(cur_tooth_label.c_str()) > 90) && (atoi(cur_tooth_label.c_str()) < 95))
+                            //        gum = "upper";
+
+                            //    //cout << gum << endl;
+
+                            //    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+                            //        cout << "gum deform failed." << endl;
+                            //        return false;
+                            //    }
+
+                            //    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
+                            //    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
+                            //    
+                            //    int index = viewer.mesh_index(fscene.get_gum_id(gum));
+                            //    viewer.data_list[index].clear();
+                            //    viewer.data_list[index].set_mesh(V, F);
+                            //    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
+                            //}
                         }
-
                     }
                     ImGui::End();
                 };
@@ -317,7 +345,6 @@ int main(int argc, char *argv[]) {
                     Eigen::MatrixXd V; // Vertices
                     Eigen::MatrixXi F; // Faces
 
-
                     string FDI = fscene.get_tooth_label(data.id);
 
                     ofstream ofs;
@@ -326,11 +353,12 @@ int main(int argc, char *argv[]) {
                     ofs << fscene.get_teeth_comp()[FDI];
                     ofs.close();
                     
-
                     igl::readPLY("tmp.ply", V, F);
+                    Eigen::Vector3d centroid = 0.5 * (V.colwise().maxCoeff() + V.colwise().minCoeff());
                     data.clear();
                     data.set_mesh(V, F);
                     data.set_colors(fscene.get_color(data.id));
+                    data.add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, fscene.get_tooth_label(data.id));
                 }
                 std::cout << "===============Arrangement complete.===============" << endl;
             }
@@ -339,12 +367,14 @@ int main(int argc, char *argv[]) {
             {
                 std::cout << "===============Gum generating...===============" << endl;
 
-                if (!fscene.generate_gums())
+                if (!fscene.generate_gums(hdll))
                     return 1;
 
                 viewer.load_mesh_from_file(fscene.upper_gum_path.c_str(), false);
+                fscene.mesh_add_gum("upper", viewer.data().id);
                 fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
                 viewer.load_mesh_from_file(fscene.lower_gum_path.c_str(), false);
+                fscene.mesh_add_gum("lower", viewer.data().id);
                 fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
 
                 std::cout << "===============Gum generation complete.===============" << endl;

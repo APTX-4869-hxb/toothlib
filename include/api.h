@@ -12,8 +12,6 @@
 #include "rapidjson/stringbuffer.h"
 #include "cpr/cpr.h"
 
-#undef GetObject
-
 using namespace rapidjson;
 using namespace std;
 

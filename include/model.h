@@ -10,7 +10,6 @@
 #include "rapidjson/allocators.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-#include "chohotech_gum_deform.h"
 #include "cpr/cpr.h"
 
 #undef GetObject
@@ -37,11 +36,11 @@ private:
     //std::vector<std::vector<int>> gum_faces;
     double* gum_vertices_ptr;
     int* gum_faces_ptr;
-    void *gum_deformer_ptr;
     ToothTransformation tt[40];
 public:
 
     int last_selected;
+    void* gum_deformer_ptr;
     //map<string, vector<vector<float>>> teeth_axis;
 
     model();
@@ -50,7 +49,7 @@ public:
     
     bool segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_);
     bool generate_gum(Document& document_result, string& ply_, string& error_msg_);
-    bool gum_deform(Document& document_result);
+    bool create_gum_deformer(Document& document_result, HMODULE hdll);
 
     inline string stl_path() { return stl_file_path; };
     inline string stl_name() { return fname; };

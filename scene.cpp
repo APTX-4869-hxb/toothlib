@@ -1,3 +1,4 @@
+//#include <Windows.h>
 #include <igl/readPLY.h>
 #include <utils.h>
 #include <scene.h>
@@ -185,7 +186,7 @@ bool scene::arrangement() {
             for (int j = 0; j < v.value[i].Size(); j++)
                 trans(i, j) = v.value[i][j].GetFloat();
         
-        Eigen::Matrix4d axis = vectorToMatrix4d(teeth_axis[v.name.GetString()]);
+        Eigen::Matrix4d axis = vectorToMatrixXd(teeth_axis[v.name.GetString()]);
         Eigen::Matrix4d res = trans * axis.inverse();
         
         for (int i = 0; i < v.value.Size(); i++)
@@ -196,7 +197,7 @@ bool scene::arrangement() {
     return true;
 }
 
-bool scene::generate_gums() {
+bool scene::generate_gums(HMODULE hdll) {
 
     string result_dir = PROJECT_PATH + string("/result");
     auto result_dir_path = fs::path(result_dir);
@@ -211,7 +212,7 @@ bool scene::generate_gums() {
         return false;
     }
 
-    upper_jaw_model.gum_deform(document_result);
+    upper_jaw_model.create_gum_deformer(document_result, hdll);
 
     ofstream ofs;
     string res_mesh_name = result_dir + string("/") + upper_jaw_model.stl_name() + string("_gum.ply");
@@ -228,12 +229,15 @@ bool scene::generate_gums() {
         return false;
     }
     
+    lower_jaw_model.create_gum_deformer(document_result, hdll);
+
     res_mesh_name = result_dir + string("/") + lower_jaw_model.stl_name() + string("_gum.ply");
     ofs.open(res_mesh_name, ofstream::out | ofstream::binary);
     ofs << result_ply;
     ofs.close();
 
     lower_gum_path = res_mesh_name;
+    has_gum = true;
 
     cout << "lower gum generation complete..." << endl;
 
@@ -243,7 +247,7 @@ bool scene::generate_gums() {
 bool scene::calc_poses() {
     for (auto axis : teeth_axis) {
 
-        Eigen::Matrix4d pose_matrix_eigen = vectorToMatrix4d(axis.second);
+        Eigen::Matrix4d pose_matrix_eigen = vectorToMatrixXd(axis.second);
         Eigen::Matrix3d R = pose_matrix_eigen.block<3, 3>(0, 0);
         Eigen::Vector3d T = pose_matrix_eigen.block<3, 1>(0, 3);
         Eigen::Vector3d euler_angles = R.eulerAngles(2, 1, 0); // 获取欧拉角，这里的顺序为 ZYX
@@ -254,3 +258,72 @@ bool scene::calc_poses() {
     return true;
 }
 
+bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum, vector<vector<float>>& vertices, vector<vector<int>>& faces) {
+
+    DEFORM_FUNC deform = (DEFORM_FUNC)GetProcAddress(hdll, "deform");
+    // prepare tooth transformation, relative to the first step
+    // transformation matrix
+    ToothTransformation tt[40];
+
+    // rotation matrix
+    Eigen::Matrix3d R = P.block<3, 3>(0, 0);
+    Eigen::Vector3d T = P.block<3, 1>(0, 3);
+
+    // assign tid to tt.tid
+    tt[0].tid = atoi(label.c_str());
+    // assign rotation to tt.rotation
+    copy(R.data(), R.data() + 9, tt[0].rotation);
+    // assign translation to tt.translation
+    tt[0].translation[0] = T[0];
+    tt[0].translation[1] = T[1];
+    tt[0].translation[2] = T[2];
+
+    // deform
+    unsigned int n_teeth = 1;       // number of transformed teeth, could be more than 1
+    double* p_deformed_vertices = new double[300000];        // the returned deformed vertices
+    int* p_deformed_faces = new int[300000];
+    unsigned int deformed_vertices_len, deformed_faces_len;
+    int ret = 1;
+    if (gum == "lower") {
+        ret = deform(lower_jaw_model.gum_deformer_ptr,
+            tt,
+            n_teeth,
+            p_deformed_vertices, &deformed_vertices_len,
+            p_deformed_faces, &deformed_faces_len, NULL, NULL);
+        //cout << gum << endl;
+
+    }
+
+    else if (gum == "upper") {
+        ret = deform(upper_jaw_model.gum_deformer_ptr,
+            tt,
+            n_teeth,
+            p_deformed_vertices, &deformed_vertices_len,
+            p_deformed_faces, &deformed_faces_len, NULL, NULL);
+        //cout << gum << endl;
+    }
+
+    //cout << ret << endl;
+    if (ret)
+        return false;
+
+    // get result
+    std::vector<std::vector<float>> deformed_vertices(deformed_vertices_len / 3);
+    for (int i = 0; i < deformed_vertices.size(); i++) {
+        deformed_vertices[i].push_back(p_deformed_vertices[i * 3]);
+        deformed_vertices[i].push_back(p_deformed_vertices[i * 3 + 1]);
+        deformed_vertices[i].push_back(p_deformed_vertices[i * 3 + 2]);
+    }
+    std::vector<std::vector<int>> deformed_faces(deformed_faces_len / 3);
+    for (int i = 0; i < deformed_faces.size(); i++) {
+        deformed_faces[i].push_back(p_deformed_faces[i * 3]);
+        deformed_faces[i].push_back(p_deformed_faces[i * 3 + 1]);
+        deformed_faces[i].push_back(p_deformed_faces[i * 3 + 2]);
+    }
+
+    vertices = deformed_vertices;
+    faces = deformed_faces;
+    //cout << "deform compelete." << endl;
+    return true;
+
+}
