@@ -17,6 +17,36 @@ using namespace std;
 
 string dump_json(Document& doc);
 void add_string_member(Document& doc, const string& key, const string& val);
+
+template <typename T>
+void add_vector_member(Document& doc, const string& key, const vector<T>& vec) {
+    auto& doc_allocator = doc.GetAllocator();
+    rapidjson::Value vectorValue(rapidjson::kArrayType);
+    for (const auto& value : vec)
+        vectorValue.PushBack(value, doc_allocator);
+    Value k;
+    k.SetString(key.c_str(), doc_allocator);
+    doc.AddMember(k, vectorValue, doc_allocator);
+}
+
+template <typename T>
+void add_2dvector_member(Document& doc, const string& key, const vector<vector<T>>& vec) {
+    auto& doc_allocator = doc.GetAllocator();
+    rapidjson::Value outerArray(rapidjson::kArrayType);
+
+    for (const auto& innerVector : vec) {
+        rapidjson::Value innerArray(rapidjson::kArrayType);
+        for (const auto& value : innerVector) {
+            innerArray.PushBack(value, doc_allocator);
+        }
+        outerArray.PushBack(innerArray, doc_allocator);
+    }
+    Value k;
+    k.SetString(key.c_str(), doc_allocator);
+    doc.AddMember(k, outerArray, doc_allocator);
+
+}
+
 string upload_mesh(string& stl_file_path, char& jaw_type, string& stl_, vector<int>& label_, string& error_msg_);
 bool config_request(map<string, string> spec, Document& input_data, Document& output_config, Document& request_body);
 string submit_job(Document& document, Document& request_body, string& error_msg_);

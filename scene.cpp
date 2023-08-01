@@ -1,4 +1,5 @@
 //#include <Windows.h>
+#include <igl/file_dialog_open.h>
 #include <igl/readPLY.h>
 #include <utils.h>
 #include <scene.h>
@@ -187,11 +188,13 @@ bool scene::arrangement() {
                 trans(i, j) = v.value[i][j].GetFloat();
         
         Eigen::Matrix4d axis = vectorToMatrixXd(teeth_axis[v.name.GetString()]);
-        Eigen::Matrix4d res = trans * axis.inverse();
+        Eigen::Matrix4d res = trans * axis;
         
         for (int i = 0; i < v.value.Size(); i++)
             for (int j = 0; j < v.value[i].Size(); j++)
                 teeth_axis[v.name.GetString()][i][j] = res(i, j);
+        //cout << v.name.GetString() << endl;
+        //cout << trans << endl;
     }
 
     return true;
@@ -252,7 +255,8 @@ bool scene::calc_poses() {
         Eigen::Vector3d T = pose_matrix_eigen.block<3, 1>(0, 3);
         Eigen::Vector3d euler_angles = R.eulerAngles(2, 1, 0); // 获取欧拉角，这里的顺序为 ZYX
         vector<float> pose = { float(T[0]), float(T[1]), float(T[2]), float(euler_angles[2]), float(euler_angles[1]), float(euler_angles[0]) };
-        poses.insert(pair<string, vector<float>>(axis.first, pose));
+        assignToMap(poses, axis.first, pose);
+        //poses.insert(pair<string, vector<float>>(axis.first, pose));
     }
 
     return true;
@@ -326,4 +330,185 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
     //cout << "deform compelete." << endl;
     return true;
 
+}
+
+void scene::load_scene() {
+    string json_name = igl::file_dialog_open();
+    ifstream t(json_name);
+    string str((istreambuf_iterator<char>(t)),
+        istreambuf_iterator<char>());
+
+    Document document;
+    document.Parse(str.c_str());
+
+    fname = document["fname"].GetString();
+
+    for (auto& v : document["teeth_comp_ply"].GetObjectA()) {
+        string ply = v.value.GetString();
+        assignToMap(teeth_comp_ply, string(v.name.GetString()), ply);
+    }
+
+    for (auto& v : document["teeth_comp_ply_urn"].GetObjectA()) {
+        string urn = v.value.GetString();
+        assignToMap(teeth_comp_ply, string(v.name.GetString()), urn);
+    }
+
+    for (int i = 0; i < document["teeth_id"].GetArray().Size(); i++)
+        teeth_id.push_back(document["teeth_id"].GetArray()[i].GetFloat());
+
+    for (auto& v : document["teeth_id_label_map"].GetObjectA()) {
+        string label = v.value.GetString();
+        assignToMap(teeth_id_label_map, atoi(v.name.GetString()), label);
+    }
+    for (auto& v : document["colors"].GetObjectA()) {
+        Eigen::RowVector3d color(v.value.GetArray()[0].GetFloat(), v.value.GetArray()[1].GetFloat(), v.value.GetArray()[2].GetFloat());
+        assignToMap(colors, atoi(v.name.GetString()), color);
+    }
+    for (auto& v : document["gum_id"].GetObjectA()) {
+        string id = v.value.GetString();
+        assignToMap(gum_id, string(v.name.GetString()), atoi(id.c_str()));
+    }
+    for (auto& v : document["poses"].GetObjectA()) {
+        vector<float> pose;
+        for (int i = 0; i < v.value.GetArray().Size(); i++)
+            pose.push_back(v.value.GetArray()[0].GetFloat());
+        assignToMap(poses, string(v.name.GetString()), pose);
+    }
+    for (auto& v : document["teeth_axis"].GetObjectA()) {
+        vector<vector<float>> axis_vec;
+        for (int i = 0; i < v.value.Size(); i++) {
+            vector<float> axis;
+            for (int j = 0; j < v.value[i].Size(); j++)
+                axis.push_back(v.value[i][j].GetFloat());
+            axis_vec.push_back(axis);
+        }
+        assignToMap(teeth_axis, string(v.name.GetString()), axis_vec);
+    }
+    for (auto& v : document["teeth_axis_origin"].GetObjectA()) {
+        vector<vector<float>> axis_vec;
+        for (int i = 0; i < v.value.Size(); i++) {
+            vector<float> axis;
+            for (int j = 0; j < v.value[i].Size(); j++)
+                axis.push_back(v.value[i][j].GetFloat());
+            axis_vec.push_back(axis);
+        }
+        assignToMap(teeth_axis_origin, string(v.name.GetString()), axis_vec);
+    }
+
+    upper_jaw_model = model(document["upper_jaw_model"].GetObjectA());
+    lower_jaw_model = model(document["lower_jaw_model"].GetObjectA());
+    upper_gum_path = document["upper_gum_path"].GetString();
+    lower_gum_path = document["lower_gum_path"].GetString();
+    last_selected = atoi(document["last_selected"].GetString());
+    has_gum = atoi(document["has_gum"].GetString());
+}
+
+void scene::save_scene() {
+    string result_dir = PROJECT_PATH + string("/result");
+    string res_scene_name = result_dir + string("/") + stl_name() + string("_scene.json");
+
+    Document scene_data(kObjectType);
+    Document teeth_comp_ply_data(kObjectType);
+    Document teeth_comp_ply_urn_data(kObjectType);
+    Document teeth_id_data(kObjectType);
+    Document teeth_id_label_map_data(kObjectType);
+    Document colors_data(kObjectType);
+    Document gum_id_data(kObjectType);
+    Document poses_data(kObjectType);
+    Document teeth_axis_data(kObjectType);
+    Document teeth_axis_origin_data(kObjectType);
+    Document upper_jaw_model_document;
+    Document lower_jaw_model_document;
+
+    add_string_member(scene_data, "fname", fname);
+    for (auto ply : teeth_comp_ply) 
+        add_string_member(teeth_comp_ply_data, ply.first, ply.second);
+    scene_data.AddMember(
+        "teeth_comp_ply",
+        teeth_comp_ply_data,
+        scene_data.GetAllocator());
+
+    for (auto urn : teeth_comp_ply_urn)
+        add_string_member(teeth_comp_ply_urn_data, urn.first, urn.second);
+    scene_data.AddMember(
+        "teeth_comp_ply_urn",
+        teeth_comp_ply_urn_data,
+        scene_data.GetAllocator());
+
+    add_vector_member(teeth_id_data, "teeth_id", teeth_id);
+    scene_data.AddMember(
+        "teeth_id",
+        teeth_id_data,
+        scene_data.GetAllocator());
+
+    for (auto map : teeth_id_label_map) {
+        char id_char[10];
+        itoa(map.first, id_char, 10);
+        add_string_member(teeth_id_label_map_data, string(id_char), map.second);
+    }
+    scene_data.AddMember(
+        "teeth_id_label_map",
+        teeth_id_label_map_data,
+        scene_data.GetAllocator());
+
+    for (auto color : colors) {
+        char id_char[10];
+        itoa(color.first, id_char, 10);
+        vector<double> color_vec = { color.second[0], color.second[1], color.second[2] };
+        add_vector_member(colors_data, string(id_char), color_vec);
+    }
+    scene_data.AddMember(
+        "colors",
+        colors_data,
+        scene_data.GetAllocator());
+
+    for (auto map : gum_id) {
+        char id_char[10];
+        itoa(map.second, id_char, 10);
+        add_string_member(gum_id_data, map.first, string(id_char));
+    }
+    scene_data.AddMember(
+        "gum_id",
+        gum_id_data,
+        scene_data.GetAllocator());
+
+    for (auto pose : poses) 
+        add_vector_member(poses_data, pose.first, pose.second);
+    scene_data.AddMember(
+        "poses",
+        poses_data,
+        scene_data.GetAllocator());
+
+    for (auto axis : teeth_axis) 
+        add_2dvector_member(teeth_axis_data, axis.first, axis.second);
+    scene_data.AddMember(
+        "teeth_axis",
+        teeth_axis_data,
+        scene_data.GetAllocator());
+
+    for (auto axis : teeth_axis_origin)
+        add_2dvector_member(teeth_axis_origin_data, axis.first, axis.second);
+    scene_data.AddMember(
+        "teeth_axis_origin",
+        teeth_axis_origin_data,
+        scene_data.GetAllocator());
+
+    upper_jaw_model_document = upper_jaw_model.save_model();
+    lower_jaw_model_document = lower_jaw_model.save_model();
+
+    add_string_member(scene_data, "upper_gum_path", upper_gum_path);
+    add_string_member(scene_data, "lower_gum_path", lower_gum_path);
+
+    char last_selected_char[10];
+    itoa(last_selected, last_selected_char, 10);
+    add_string_member(scene_data, "last_selected", string(last_selected_char));
+    char has_gum_char[10];
+    itoa(has_gum, has_gum_char, 10);
+    add_string_member(scene_data, "has_gum", has_gum_char);
+
+    ofstream ofs;
+    ofs.open(res_scene_name, ofstream::out | ofstream::binary);
+    ofs << dump_json(scene_data);
+
+    ofs.close();
 }

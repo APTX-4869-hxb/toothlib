@@ -44,6 +44,8 @@ public:
 	bool generate_gums(HMODULE hdll);
 	bool gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum, vector<vector<float>>& vertices, vector<vector<int>>& faces);
 	bool calc_poses();
+	void load_scene();
+	void save_scene();
 
 	inline string stl_name() { return fname; };
 	inline map<string, string> get_teeth_comp() { return teeth_comp_ply; };

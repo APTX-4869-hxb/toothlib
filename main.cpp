@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     //// Load a mesh in OFF format
     //igl::readOFF("bunny.off", V, F);
     scene fscene;
-    model fmodel;
+    //model fmodel;
     // Init the viewer
     igl::opengl::glfw::Viewer viewer;
 
@@ -84,14 +84,14 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Load##Model", ImVec2((w - p) / 2.f, 0)))
             {
-                string fpath = viewer.open_dialog_load_mesh();
-                if(fpath != "false")
-                    fmodel = model(fpath);
+                //string fpath = viewer.open_dialog_load_mesh();
+                //if(fpath != "false")
+                //    fmodel = model(fpath);
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Model", ImVec2((w - p) / 2.f, 0)))
             {
-                viewer.open_dialog_save_mesh();
+                //viewer.open_dialog_save_mesh();
             }
         }
 
@@ -297,7 +297,6 @@ int main(int argc, char *argv[]) {
                             Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
                             viewer.data().set_vertices(new_V);
 
-
                             fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
                             //cout << "hhh" << endl;
 
@@ -341,6 +340,9 @@ int main(int argc, char *argv[]) {
                 if (!fscene.arrangement())
                     return 1;
 
+                //cout << "before arrangement: " << fscene.poses["31"] << endl;
+                fscene.calc_poses();
+                //cout << "after arrangement: " << fscene.poses["31"] << endl;
 
                 for (auto& data : viewer.data_list) {
                     Eigen::MatrixXd V; // Vertices

@@ -28,9 +28,31 @@ model::model(string fpath) {
         cout << "STL file name must end with u for upper jaw or l for lower jaw" << endl;
     }
 
-    last_selected = -1;
+    //last_selected = -1;
 }
+model::model(Value val) {
+    stl_file_path = string(val["stl_file_path"].GetString());
+    stl_file_urn = string(val["stl_file_urn"].GetString());
+    fname = string(val["fname"].GetString());
+    jaw_type = fname[fname.find_first_of('.') - 1];
 
+    if (jaw_type == 'L' || jaw_type == 'l') {
+        jaw_type = 'L';
+    }
+    else if (jaw_type == 'U' || jaw_type == 'u') {
+        jaw_type = 'U';
+    }
+    else {
+        cout << "STL file name must end with u for upper jaw or l for lower jaw" << endl;
+    }
+    
+    for (auto& v : val["teeth_comp_ply_urn"].GetObjectA()) {
+        string urn = v.value.GetString();
+        assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
+    }
+    gum_urn = string(val["gum_urn"].GetString());
+    gum_ply = string(val["gum_ply"].GetString());
+}
 bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
         Output:
@@ -249,4 +271,26 @@ bool model::create_gum_deformer(Document &document_result, HMODULE hdll) {
         cout << "failed" << endl;
     }
     return true;
+}
+
+Document model::save_model() {
+
+    Document model_data(kObjectType);
+    Document teeth_comp_ply_urn_data(kObjectType);
+
+    add_string_member(model_data, "stl_file_path", stl_file_path);
+    add_string_member(model_data, "stl_file_urn", stl_file_urn);
+    add_string_member(model_data, "fname", fname);
+
+    for (auto urn : teeth_comp_ply_urn)
+        add_string_member(teeth_comp_ply_urn_data, urn.first, urn.second);
+    model_data.AddMember(
+        "teeth_comp_ply_urn",
+        teeth_comp_ply_urn_data,
+        model_data.GetAllocator());
+
+    add_string_member(model_data, "gum_urn", gum_urn);
+    add_string_member(model_data, "gum_ply", gum_ply);
+
+    return model_data;
 }
