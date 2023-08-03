@@ -30,8 +30,7 @@ private:
     //map<int, Eigen::RowVector3d> colors;
     //map<string, string> teeth_comp_stl;
     map<string, string> teeth_comp_ply_urn;
-    string gum_urn;
-    string gum_ply;
+
     //std::vector<std::vector<double>> gum_vertices;
     //std::vector<std::vector<int>> gum_faces;
     double* gum_vertices_ptr;
@@ -40,6 +39,8 @@ private:
 public:
 
     //int last_selected;
+    string gum_urn;
+    string gum_ply;
     void* gum_deformer_ptr;
     //map<string, vector<vector<float>>> teeth_axis;
 
@@ -51,7 +52,7 @@ public:
     bool segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_);
     bool generate_gum(Document& document_result, string& ply_, string& error_msg_);
     bool create_gum_deformer(Document& document_result, HMODULE hdll);
-    Document save_model();
+    bool save_model(Document& doc);
 
     inline string stl_path() { return stl_file_path; };
     inline string stl_name() { return fname; };

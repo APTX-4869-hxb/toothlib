@@ -249,7 +249,7 @@ bool scene::generate_gums(HMODULE hdll) {
 
 bool scene::calc_poses() {
     for (auto axis : teeth_axis) {
-
+        //cout << axis.first << endl;
         Eigen::Matrix4d pose_matrix_eigen = vectorToMatrixXd(axis.second);
         Eigen::Matrix3d R = pose_matrix_eigen.block<3, 3>(0, 0);
         Eigen::Vector3d T = pose_matrix_eigen.block<3, 1>(0, 3);
@@ -332,8 +332,10 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
 
 }
 
-void scene::load_scene() {
+bool scene::load_scene() {
     string json_name = igl::file_dialog_open();
+    if (json_name == "")
+        return false;
     ifstream t(json_name);
     string str((istreambuf_iterator<char>(t)),
         istreambuf_iterator<char>());
@@ -343,37 +345,27 @@ void scene::load_scene() {
 
     fname = document["fname"].GetString();
 
+    cout << "load completed teeth..." << endl;
     for (auto& v : document["teeth_comp_ply"].GetObjectA()) {
         string ply = v.value.GetString();
         assignToMap(teeth_comp_ply, string(v.name.GetString()), ply);
     }
 
+    //string load_dir = PROJECT_PATH + string("/loadin");
+    //for (auto ply : get_teeth_comp()) {
+    //    ofstream ofs;
+    //    string comp_name = load_dir + string("/seg_") + stl_name() + string("_comp_") + ply.first + string(".ply");
+    //    ofs.open(comp_name, ofstream::out | ofstream::binary);
+    //    ofs << ply.second;
+    //    ofs.close();
+    //}
+
     for (auto& v : document["teeth_comp_ply_urn"].GetObjectA()) {
         string urn = v.value.GetString();
-        assignToMap(teeth_comp_ply, string(v.name.GetString()), urn);
+        assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
     }
 
-    for (int i = 0; i < document["teeth_id"].GetArray().Size(); i++)
-        teeth_id.push_back(document["teeth_id"].GetArray()[i].GetFloat());
-
-    for (auto& v : document["teeth_id_label_map"].GetObjectA()) {
-        string label = v.value.GetString();
-        assignToMap(teeth_id_label_map, atoi(v.name.GetString()), label);
-    }
-    for (auto& v : document["colors"].GetObjectA()) {
-        Eigen::RowVector3d color(v.value.GetArray()[0].GetFloat(), v.value.GetArray()[1].GetFloat(), v.value.GetArray()[2].GetFloat());
-        assignToMap(colors, atoi(v.name.GetString()), color);
-    }
-    for (auto& v : document["gum_id"].GetObjectA()) {
-        string id = v.value.GetString();
-        assignToMap(gum_id, string(v.name.GetString()), atoi(id.c_str()));
-    }
-    for (auto& v : document["poses"].GetObjectA()) {
-        vector<float> pose;
-        for (int i = 0; i < v.value.GetArray().Size(); i++)
-            pose.push_back(v.value.GetArray()[0].GetFloat());
-        assignToMap(poses, string(v.name.GetString()), pose);
-    }
+    cout << "load axis..." << endl;
     for (auto& v : document["teeth_axis"].GetObjectA()) {
         vector<vector<float>> axis_vec;
         for (int i = 0; i < v.value.Size(); i++) {
@@ -383,6 +375,7 @@ void scene::load_scene() {
             axis_vec.push_back(axis);
         }
         assignToMap(teeth_axis, string(v.name.GetString()), axis_vec);
+        //cout << teeth_axis[string(v.name.GetString())][0][0] << " " << teeth_axis[string(v.name.GetString())][0][1] << " " << teeth_axis[string(v.name.GetString())][0][2] << " " << teeth_axis[string(v.name.GetString())][0][3] << endl;
     }
     for (auto& v : document["teeth_axis_origin"].GetObjectA()) {
         vector<vector<float>> axis_vec;
@@ -394,16 +387,52 @@ void scene::load_scene() {
         }
         assignToMap(teeth_axis_origin, string(v.name.GetString()), axis_vec);
     }
-
+    cout << "load jaw model..." << endl;
     upper_jaw_model = model(document["upper_jaw_model"].GetObjectA());
     lower_jaw_model = model(document["lower_jaw_model"].GetObjectA());
-    upper_gum_path = document["upper_gum_path"].GetString();
-    lower_gum_path = document["lower_gum_path"].GetString();
-    last_selected = atoi(document["last_selected"].GetString());
+
     has_gum = atoi(document["has_gum"].GetString());
+    if (has_gum) {
+        //cout << "load gum..." << endl;
+        //ofstream ofs;
+        //string gum_name = load_dir + string("/") + upper_jaw_model.stl_name() + string("_gum.ply");
+        //ofs.open(gum_name, ofstream::out | ofstream::binary);
+        //ofs << upper_jaw_model.gum_ply;
+        //ofs.close();
+        upper_gum_path = document["upper_gum_path"].GetString();
+        lower_gum_path = document["lower_gum_path"].GetString();
+        //upper_gum_path = gum_name;
+
+        //gum_name = load_dir + string("/") + lower_jaw_model.stl_name() + string("_gum.ply");
+        //ofs.open(gum_name, ofstream::out | ofstream::binary);
+        //ofs << lower_jaw_model.gum_ply;
+        //ofs.close();
+
+        //lower_gum_path = gum_name;
+    }
+
+    last_selected = atoi(document["last_selected"].GetString());
+
+    map<string, string> upper_comp_ply_urn;
+    map<string, string> lower_comp_ply_urn;
+
+    for (auto teeth_urn : teeth_comp_ply_urn) {
+        if (teeth_urn.first[0] == '3' || teeth_urn.first[0] == '4' || teeth_urn.first[0] == '7' || teeth_urn.first[0] == '8' || (atoi(teeth_urn.first.c_str()) > 94) && (atoi(teeth_urn.first.c_str()) < 99)) {
+            lower_comp_ply_urn.insert(teeth_urn);
+        }
+        else if (teeth_urn.first[0] == '1' || teeth_urn.first[0] == '2' || teeth_urn.first[0] == '5' || teeth_urn.first[0] == '6' || (atoi(teeth_urn.first.c_str()) > 90) && (atoi(teeth_urn.first.c_str()) < 95))
+            upper_comp_ply_urn.insert(teeth_urn);
+    }
+    upper_jaw_model.set_teeth_comp_urn(upper_comp_ply_urn);
+    lower_jaw_model.set_teeth_comp_urn(lower_comp_ply_urn);
+
+    cout << "calculate poses..." << endl;
+    calc_poses();
+
+    return true;
 }
 
-void scene::save_scene() {
+bool scene::save_scene() {
     string result_dir = PROJECT_PATH + string("/result");
     string res_scene_name = result_dir + string("/") + stl_name() + string("_scene.json");
 
@@ -417,8 +446,8 @@ void scene::save_scene() {
     Document poses_data(kObjectType);
     Document teeth_axis_data(kObjectType);
     Document teeth_axis_origin_data(kObjectType);
-    Document upper_jaw_model_document;
-    Document lower_jaw_model_document;
+    Document upper_jaw_model_document(kObjectType);
+    Document lower_jaw_model_document(kObjectType);
 
     add_string_member(scene_data, "fname", fname);
     for (auto ply : teeth_comp_ply) 
@@ -435,50 +464,6 @@ void scene::save_scene() {
         teeth_comp_ply_urn_data,
         scene_data.GetAllocator());
 
-    add_vector_member(teeth_id_data, "teeth_id", teeth_id);
-    scene_data.AddMember(
-        "teeth_id",
-        teeth_id_data,
-        scene_data.GetAllocator());
-
-    for (auto map : teeth_id_label_map) {
-        char id_char[10];
-        itoa(map.first, id_char, 10);
-        add_string_member(teeth_id_label_map_data, string(id_char), map.second);
-    }
-    scene_data.AddMember(
-        "teeth_id_label_map",
-        teeth_id_label_map_data,
-        scene_data.GetAllocator());
-
-    for (auto color : colors) {
-        char id_char[10];
-        itoa(color.first, id_char, 10);
-        vector<double> color_vec = { color.second[0], color.second[1], color.second[2] };
-        add_vector_member(colors_data, string(id_char), color_vec);
-    }
-    scene_data.AddMember(
-        "colors",
-        colors_data,
-        scene_data.GetAllocator());
-
-    for (auto map : gum_id) {
-        char id_char[10];
-        itoa(map.second, id_char, 10);
-        add_string_member(gum_id_data, map.first, string(id_char));
-    }
-    scene_data.AddMember(
-        "gum_id",
-        gum_id_data,
-        scene_data.GetAllocator());
-
-    for (auto pose : poses) 
-        add_vector_member(poses_data, pose.first, pose.second);
-    scene_data.AddMember(
-        "poses",
-        poses_data,
-        scene_data.GetAllocator());
-
     for (auto axis : teeth_axis) 
         add_2dvector_member(teeth_axis_data, axis.first, axis.second);
     scene_data.AddMember(
@@ -493,8 +478,19 @@ void scene::save_scene() {
         teeth_axis_origin_data,
         scene_data.GetAllocator());
 
-    upper_jaw_model_document = upper_jaw_model.save_model();
-    lower_jaw_model_document = lower_jaw_model.save_model();
+    //cout << "save model..." << endl;
+    upper_jaw_model.save_model(upper_jaw_model_document);
+    //cout << "save model..." << endl;
+    scene_data.AddMember(
+        "upper_jaw_model",
+        upper_jaw_model_document,
+        scene_data.GetAllocator());
+    lower_jaw_model.save_model(lower_jaw_model_document);
+    scene_data.AddMember(
+        "lower_jaw_model",
+        lower_jaw_model_document,
+        scene_data.GetAllocator());
+
 
     add_string_member(scene_data, "upper_gum_path", upper_gum_path);
     add_string_member(scene_data, "lower_gum_path", lower_gum_path);
@@ -511,4 +507,6 @@ void scene::save_scene() {
     ofs << dump_json(scene_data);
 
     ofs.close();
+
+    return true;
 }

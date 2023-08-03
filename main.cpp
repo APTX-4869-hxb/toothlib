@@ -30,6 +30,167 @@ using namespace std;
 float text_shift_scale_factor;
 float render_scale;
 
+void align_to_jaw(igl::opengl::glfw::Viewer& viewer, scene& fscene) {
+    Eigen::MatrixXd V; // Vertices
+    Eigen::MatrixXi F; // Faces
+    igl::read_triangle_mesh(fscene.upper_jaw_model.stl_path(), V, F);
+    for (int i = 0; i < viewer.core_list.size(); i++)
+        viewer.core_list[i].align_camera_center(V, F);
+
+}
+
+void load_gum(igl::opengl::glfw::Viewer& viewer,  scene& fscene) {
+    viewer.load_mesh_from_file(fscene.upper_gum_path.c_str(), false);
+    fscene.mesh_add_gum("upper", viewer.data().id);
+    fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
+    viewer.load_mesh_from_file(fscene.lower_gum_path.c_str(), false);
+    fscene.mesh_add_gum("lower", viewer.data().id);
+    fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
+}
+
+void load_teeth_comp(igl::opengl::glfw::Viewer& viewer, scene& fscene) {
+    for (auto ply : fscene.get_teeth_comp()) {
+        string result_dir = PROJECT_PATH + string("/result");
+        string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + ply.first + string(".ply");
+
+        viewer.load_mesh_from_file(comp_name.c_str(), false);
+        fscene.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
+        fscene.mesh_add_tooth(viewer.data().id, ply.first);
+        //set axis centroid
+        Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
+        viewer.data().add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, ply.first);
+    }
+}
+
+void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, scene& fscene, HMODULE& hdll) {
+    viewer.callback_pre_draw =
+        [&](igl::opengl::glfw::Viewer&)
+    {
+        //int cur_idx = viewer.selected_data_index;
+        //cout << "cur index:" << viewer.selected_data_index << endl;
+        if (fscene.last_selected != viewer.selected_data_index)
+        {
+
+            int cur_id = viewer.data_list[viewer.selected_data_index].id;
+            //cout << "cur_id:" << cur_id << endl;
+            if (!fscene.mesh_is_tooth(cur_id)) {
+                //cout << "round" << endl;
+                if (cur_id > fscene.mesh_max_tooth_id())
+                    viewer.selected_data_index = viewer.mesh_index(fscene.mesh_min_tooth_id());
+                else
+                    viewer.selected_data_index = viewer.mesh_index(fscene.mesh_max_tooth_id());
+            }
+
+            for (auto& data : viewer.data_list) {
+                data.set_colors(fscene.get_color(data.id));
+            }
+            viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
+            fscene.last_selected = viewer.selected_data_index;
+        }
+
+        return false;
+    };
+
+    viewer.callback_mouse_down =
+        [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+    {
+
+        int fid;
+        Eigen::Vector3f bc;
+        // Cast a ray in the view direction starting from the mouse position
+        // TODO: depth detection
+        double x = viewer.current_mouse_x;
+        double y = viewer.core().viewport(3) - viewer.current_mouse_y;
+        for (auto& data : viewer.data_list) {
+            if (igl::unproject_onto_mesh(
+                Eigen::Vector2f(x, y),
+                viewer.core().view,
+                viewer.core().proj,
+                viewer.core().viewport,
+                data.V,
+                data.F,
+                fid,
+                bc)
+                && fscene.mesh_is_tooth(data.id)
+                ) {
+                std::cout << "You clicked on tooth #" << fscene.get_tooth_label(data.id) << std::endl;
+                viewer.selected_data_index = viewer.mesh_index(data.id);
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Draw additional windows
+    menu.callback_draw_custom_window = [&]()
+    {
+        // Define next window position + size
+        ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(200, 240), ImGuiCond_FirstUseEver);
+        ImGui::Begin(
+            "Tooth", nullptr,
+            ImGuiWindowFlags_NoSavedSettings
+        );
+
+        if (fscene.mesh_is_tooth(viewer.data().id)) {
+            string cur_tooth_label = fscene.get_tooth_label(viewer.data().id);
+            vector<float> last_pose = fscene.poses[cur_tooth_label];
+            ImGui::PushItemWidth(-80);
+            ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
+            ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.1, -50.0, 50.0);
+            ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.1, -50.0, 50.0);
+            ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.1, -50.0, 50.0);
+            ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -igl::PI, igl::PI);
+            ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -igl::PI, igl::PI);
+            ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -igl::PI, igl::PI);
+            ImGui::PopItemWidth();
+
+            if (last_pose != fscene.poses[cur_tooth_label]) {
+                vector<float> cur_pose = fscene.poses[cur_tooth_label];
+                Eigen::Matrix4d cur_axis_mat = poseToMatrix4d(cur_pose);
+                Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
+
+                Eigen::Matrix4d P = cur_axis_mat * last_axis_mat.inverse();
+
+                Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
+                Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
+                viewer.data().set_vertices(new_V);
+
+                fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
+                //cout << "hhh" << endl;
+
+                if (fscene.has_gum) {
+                    string gum;
+                    vector<vector<float>> new_gum_v;
+                    vector<vector<int>> new_gum_f;
+
+                    if (cur_tooth_label[0] == '3' || cur_tooth_label[0] == '4' || cur_tooth_label[0] == '7' || cur_tooth_label[0] == '8' || (atoi(cur_tooth_label.c_str()) > 94) && (atoi(cur_tooth_label.c_str()) < 99))
+                        gum = "lower";
+                    else if (cur_tooth_label[0] == '1' || cur_tooth_label[0] == '2' || cur_tooth_label[0] == '5' || cur_tooth_label[0] == '6' || (atoi(cur_tooth_label.c_str()) > 90) && (atoi(cur_tooth_label.c_str()) < 95))
+                        gum = "upper";
+
+                    //cout << gum << endl;
+
+                    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+                        cout << "gum deform failed." << endl;
+                        return false;
+                    }
+
+                    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
+                    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
+
+                    int index = viewer.mesh_index(fscene.get_gum_id(gum));
+                    viewer.data_list[index].clear();
+                    viewer.data_list[index].set_mesh(V, F);
+                    viewer.data_list[index].compute_normals();
+                    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
+                }
+            }
+        }
+        ImGui::End();
+    };
+}
+
 int main(int argc, char *argv[]) {
     //Eigen::MatrixXd V;
     //Eigen::MatrixXi F;
@@ -63,17 +224,29 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Load##Scene", ImVec2((w - p) / 2.f, 0)))
             {
-                std::cout << "please select one jaw..." << endl;
-                string fpath_1 = viewer.open_dialog_load_mesh();
-                std::cout << "please select the other jaw in the same pair..." << endl;
-                string fpath_2 = viewer.open_dialog_load_mesh();
-                if (fpath_1 != "false" && fpath_2 != "false")
-                    fscene = scene(fpath_1, fpath_2);
-                //viewer.load_scene();
+                std::cout << "please select scene json..." << endl;
+                if (fscene.load_scene()) {
+
+                    align_to_jaw(viewer, fscene);
+                    load_teeth_comp(viewer, fscene);
+
+                    if (fscene.has_gum)
+                        load_gum(viewer, fscene);
+
+                    callback_draw(viewer, menu, fscene, hdll);
+                    cout << "load success." << endl;
+                    cout << "The name of jaw file is: " << fscene.stl_name() << endl;
+                }
+                else
+                    cout << "no scene loaded." << endl;
+                //viewer.load_scene(); 
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Scene", ImVec2((w - p) / 2.f, 0)))
             {
+                cout << "saving scene..." << endl;
+                fscene.save_scene();
+                cout << "scene saved." << endl;
                 //viewer.save_scene();
             }
         }
@@ -84,6 +257,12 @@ int main(int argc, char *argv[]) {
             float p = ImGui::GetStyle().FramePadding.x;
             if (ImGui::Button("Load##Model", ImVec2((w - p) / 2.f, 0)))
             {
+                std::cout << "please select one jaw..." << endl;
+                string fpath_1 = viewer.open_dialog_load_mesh();
+                std::cout << "please select the other jaw in the same pair..." << endl;
+                string fpath_2 = viewer.open_dialog_load_mesh();
+                if (fpath_1 != "false" && fpath_2 != "false")
+                    fscene = scene(fpath_1, fpath_2);
                 //string fpath = viewer.open_dialog_load_mesh();
                 //if(fpath != "false")
                 //    fmodel = model(fpath);
@@ -177,158 +356,25 @@ int main(int argc, char *argv[]) {
                 if (!fscene.segment_jaws())
                     return 1;
                 string result_dir = PROJECT_PATH + string("/result");
-
                 for (auto ply : fscene.get_teeth_comp()) {
                     ofstream ofs;
                     string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + ply.first + string(".ply");
                     ofs.open(comp_name, ofstream::out | ofstream::binary);
                     ofs << ply.second;
                     ofs.close();
+                    //cout << ply.first << endl;
+                    //cout << ply.second << endl;
 
-                    viewer.load_mesh_from_file(comp_name.c_str(), false);
-                    fscene.set_colors(viewer.data().id, 0.5 * Eigen::RowVector3d::Random().array() + 0.5);
-                    fscene.mesh_add_tooth(viewer.data().id, ply.first);
-
-                    //set axis centroid
-                    Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
-                    for (int i = 0; i < 3; i++)
-                        fscene.teeth_axis[ply.first][i][3] = centroid[i];
-                    viewer.data().add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, ply.first);
-
-                    //// Add a 3D gizmo plugin
-                    //igl::opengl::glfw::imgui::ImGuizmoWidget gizmo;
-                    //plugin.widgets.push_back(&gizmo);
                 }
+
+                load_teeth_comp(viewer, fscene);
 
                 fscene.calc_poses();
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
-                viewer.callback_pre_draw =
-                    [&](igl::opengl::glfw::Viewer&)
-                {
-                    //int cur_idx = viewer.selected_data_index;
-                    //cout << "cur index:" << viewer.selected_data_index << endl;
-                    if (fscene.last_selected != viewer.selected_data_index)
-                    {
+                callback_draw(viewer, menu, fscene, hdll);
 
-                        int cur_id = viewer.data_list[viewer.selected_data_index].id;
-                        //cout << "cur_id:" << cur_id << endl;
-                        if (!fscene.mesh_is_tooth(cur_id)) {
-                            //cout << "round" << endl;
-                            if (cur_id > fscene.mesh_max_tooth_id())
-                                viewer.selected_data_index = viewer.mesh_index(fscene.mesh_min_tooth_id());
-                            else
-                                viewer.selected_data_index = viewer.mesh_index(fscene.mesh_max_tooth_id());
-                        }
-
-                        for (auto& data : viewer.data_list) {
-                            data.set_colors(fscene.get_color(data.id));
-                        }
-                        viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
-                        fscene.last_selected = viewer.selected_data_index;
-                    }
-
-                    return false;
-                };
-
-                viewer.callback_mouse_down =
-                    [&](igl::opengl::glfw::Viewer& viewer, int, int)->bool
-                {
-
-                    int fid;
-                    Eigen::Vector3f bc;
-                    // Cast a ray in the view direction starting from the mouse position
-                    // TODO: depth detection
-                    double x = viewer.current_mouse_x;
-                    double y = viewer.core().viewport(3) - viewer.current_mouse_y;
-                    for (auto& data : viewer.data_list) {
-                        if (igl::unproject_onto_mesh(
-                            Eigen::Vector2f(x, y),
-                            viewer.core().view,
-                            viewer.core().proj,
-                            viewer.core().viewport,
-                            data.V,
-                            data.F,
-                            fid,
-                            bc)
-                            && fscene.mesh_is_tooth(data.id)
-                            ) {
-                            std::cout << "You clicked on tooth #" << fscene.get_tooth_label(data.id) << std::endl;
-                            viewer.selected_data_index = viewer.mesh_index(data.id);
-                            return true;
-                        }
-                    }
-                    return false;
-                };
-
-                // Draw additional windows
-                menu.callback_draw_custom_window = [&]()
-                {
-                    // Define next window position + size
-                    ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiCond_FirstUseEver);
-                    ImGui::SetNextWindowSize(ImVec2(200, 240), ImGuiCond_FirstUseEver);
-                    ImGui::Begin(
-                        "Tooth", nullptr,
-                        ImGuiWindowFlags_NoSavedSettings
-                    );
-
-                    if (fscene.mesh_is_tooth(viewer.data().id)) {
-                        string cur_tooth_label = fscene.get_tooth_label(viewer.data().id);
-                        vector<float> last_pose = fscene.poses[cur_tooth_label];
-                        ImGui::PushItemWidth(-80);
-                        ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
-                        ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.1, -50.0, 50.0);
-                        ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.1, -50.0, 50.0);
-                        ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.1, -50.0, 50.0);
-                        ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -igl::PI, igl::PI);
-                        ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -igl::PI, igl::PI);
-                        ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -igl::PI, igl::PI);
-                        ImGui::PopItemWidth();
-
-                        if (last_pose != fscene.poses[cur_tooth_label]) {
-                            vector<float> cur_pose = fscene.poses[cur_tooth_label];
-                            Eigen::Matrix4d cur_axis_mat = poseToMatrix4d(cur_pose);
-                            Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
-
-                            Eigen::Matrix4d P = cur_axis_mat * last_axis_mat.inverse();
-
-                            Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
-                            Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
-                            viewer.data().set_vertices(new_V);
-
-                            fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
-                            //cout << "hhh" << endl;
-
-                            //if (fscene.has_gum) {
-                            //    string gum;
-                            //    vector<vector<float>> new_gum_v;
-                            //    vector<vector<int>> new_gum_f;
-
-                            //    if (cur_tooth_label[0] == '3' || cur_tooth_label[0] == '4' || cur_tooth_label[0] == '7' || cur_tooth_label[0] == '8' || (atoi(cur_tooth_label.c_str()) > 94) && (atoi(cur_tooth_label.c_str()) < 99))
-                            //        gum = "lower";
-                            //    else if (cur_tooth_label[0] == '1' || cur_tooth_label[0] == '2' || cur_tooth_label[0] == '5' || cur_tooth_label[0] == '6' || (atoi(cur_tooth_label.c_str()) > 90) && (atoi(cur_tooth_label.c_str()) < 95))
-                            //        gum = "upper";
-
-                            //    //cout << gum << endl;
-
-                            //    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
-                            //        cout << "gum deform failed." << endl;
-                            //        return false;
-                            //    }
-
-                            //    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
-                            //    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
-                            //    
-                            //    int index = viewer.mesh_index(fscene.get_gum_id(gum));
-                            //    viewer.data_list[index].clear();
-                            //    viewer.data_list[index].set_mesh(V, F);
-                            //    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
-                            //}
-                        }
-                    }
-                    ImGui::End();
-                };
                 fscene.teeth_axis_origin = fscene.teeth_axis;
                 std::cout << "===============Segment complete.===============" << endl;
             }
@@ -350,16 +396,18 @@ int main(int argc, char *argv[]) {
 
                     string FDI = fscene.get_tooth_label(data.id);
 
+                    string result_dir = PROJECT_PATH + string("/result");
                     ofstream ofs;
-                    string comp_name = string("tmp.ply");
+                    string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + FDI + string(".ply");
                     ofs.open(comp_name, ofstream::out | ofstream::binary);
                     ofs << fscene.get_teeth_comp()[FDI];
                     ofs.close();
                     
-                    igl::readPLY("tmp.ply", V, F);
+                    igl::readPLY(comp_name, V, F);
                     Eigen::Vector3d centroid = 0.5 * (V.colwise().maxCoeff() + V.colwise().minCoeff());
                     data.clear();
                     data.set_mesh(V, F);
+                    data.compute_normals();
                     data.set_colors(fscene.get_color(data.id));
                     data.add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, fscene.get_tooth_label(data.id));
                 }
@@ -373,12 +421,7 @@ int main(int argc, char *argv[]) {
                 if (!fscene.generate_gums(hdll))
                     return 1;
 
-                viewer.load_mesh_from_file(fscene.upper_gum_path.c_str(), false);
-                fscene.mesh_add_gum("upper", viewer.data().id);
-                fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
-                viewer.load_mesh_from_file(fscene.lower_gum_path.c_str(), false);
-                fscene.mesh_add_gum("lower", viewer.data().id);
-                fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
+                load_gum(viewer, fscene);
 
                 std::cout << "===============Gum generation complete.===============" << endl;
             }

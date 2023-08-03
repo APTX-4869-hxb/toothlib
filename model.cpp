@@ -34,23 +34,17 @@ model::model(Value val) {
     stl_file_path = string(val["stl_file_path"].GetString());
     stl_file_urn = string(val["stl_file_urn"].GetString());
     fname = string(val["fname"].GetString());
-    jaw_type = fname[fname.find_first_of('.') - 1];
+    jaw_type = fname[fname.length() - 1];
 
-    if (jaw_type == 'L' || jaw_type == 'l') {
-        jaw_type = 'L';
-    }
-    else if (jaw_type == 'U' || jaw_type == 'u') {
-        jaw_type = 'U';
-    }
-    else {
-        cout << "STL file name must end with u for upper jaw or l for lower jaw" << endl;
-    }
-    
-    for (auto& v : val["teeth_comp_ply_urn"].GetObjectA()) {
-        string urn = v.value.GetString();
-        assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
-    }
+    //
+    //for (auto& v : val["teeth_comp_ply_urn"].GetObjectA()) {
+    //    string urn = v.value.GetString();
+    //    assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
+    //}
+    //cout << val["gum_urn"].GetString() << endl;
+    //if(val["gum_urn"].GetStringLength())
     gum_urn = string(val["gum_urn"].GetString());
+    //if (val["gum_ply"].GetStringLength())
     gum_ply = string(val["gum_ply"].GetString());
 }
 bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_) {
@@ -226,7 +220,9 @@ bool model::generate_gum(Document& document_result, string& ply_, string& error_
         return false;
 
     // Step 5 download mesh
-    download_mesh(document_result, ply_, "gum");
+    gum_urn = download_mesh(document_result, ply_, "gum");
+
+    gum_ply = ply_;
 
     return true;
 }
@@ -273,24 +269,23 @@ bool model::create_gum_deformer(Document &document_result, HMODULE hdll) {
     return true;
 }
 
-Document model::save_model() {
+bool model::save_model(Document& doc) {
 
-    Document model_data(kObjectType);
-    Document teeth_comp_ply_urn_data(kObjectType);
+    //Document teeth_comp_ply_urn_data(kObjectType);
 
-    add_string_member(model_data, "stl_file_path", stl_file_path);
-    add_string_member(model_data, "stl_file_urn", stl_file_urn);
-    add_string_member(model_data, "fname", fname);
+    add_string_member(doc, "stl_file_path", stl_file_path);
+    add_string_member(doc, "stl_file_urn", stl_file_urn);
+    add_string_member(doc, "fname", fname);
 
-    for (auto urn : teeth_comp_ply_urn)
-        add_string_member(teeth_comp_ply_urn_data, urn.first, urn.second);
-    model_data.AddMember(
-        "teeth_comp_ply_urn",
-        teeth_comp_ply_urn_data,
-        model_data.GetAllocator());
+    //for (auto urn : teeth_comp_ply_urn)
+    //    add_string_member(teeth_comp_ply_urn_data, urn.first, urn.second);
+    //doc.AddMember(
+    //    "teeth_comp_ply_urn",
+    //    teeth_comp_ply_urn_data,
+    //    doc.GetAllocator());
 
-    add_string_member(model_data, "gum_urn", gum_urn);
-    add_string_member(model_data, "gum_ply", gum_ply);
+    add_string_member(doc, "gum_urn", gum_urn);
+    add_string_member(doc, "gum_ply", gum_ply);
 
-    return model_data;
+    return true;
 }
