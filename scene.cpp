@@ -215,6 +215,8 @@ bool scene::generate_gums(HMODULE hdll) {
         return false;
     }
 
+    upper_gum_doc_str = dump_json(document_result);
+
     upper_jaw_model.create_gum_deformer(document_result, hdll);
 
     ofstream ofs;
@@ -232,6 +234,8 @@ bool scene::generate_gums(HMODULE hdll) {
         return false;
     }
     
+    lower_gum_doc_str = dump_json(document_result);
+
     lower_jaw_model.create_gum_deformer(document_result, hdll);
 
     res_mesh_name = result_dir + string("/") + lower_jaw_model.stl_name() + string("_gum.ply");
@@ -273,6 +277,8 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
     Eigen::Matrix3d R = P.block<3, 3>(0, 0);
     Eigen::Vector3d T = P.block<3, 1>(0, 3);
 
+    cout << "R: " << R << endl;
+    cout << "T: " << T << endl;
     // assign tid to tt.tid
     tt[0].tid = atoi(label.c_str());
     // assign rotation to tt.rotation
@@ -327,7 +333,7 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
 
     vertices = deformed_vertices;
     faces = deformed_faces;
-    //cout << "deform compelete." << endl;
+    ////cout << "deform compelete." << endl;
     return true;
 
 }
@@ -401,6 +407,9 @@ bool scene::load_scene() {
         //ofs.close();
         upper_gum_path = document["upper_gum_path"].GetString();
         lower_gum_path = document["lower_gum_path"].GetString();
+
+        upper_gum_doc_str = document["upper_gum_doc_str"].GetString();
+        lower_gum_doc_str = document["lower_gum_doc_str"].GetString();
         //upper_gum_path = gum_name;
 
         //gum_name = load_dir + string("/") + lower_jaw_model.stl_name() + string("_gum.ply");
@@ -491,6 +500,8 @@ bool scene::save_scene() {
         lower_jaw_model_document,
         scene_data.GetAllocator());
 
+    add_string_member(scene_data, "upper_gum_doc_str", upper_gum_doc_str);
+    add_string_member(scene_data, "lower_gum_doc_str", lower_gum_doc_str);
 
     add_string_member(scene_data, "upper_gum_path", upper_gum_path);
     add_string_member(scene_data, "lower_gum_path", lower_gum_path);

@@ -32,6 +32,8 @@ public:
 	model lower_jaw_model;
 	string upper_gum_path;
 	string lower_gum_path;
+	string upper_gum_doc_str;
+	string lower_gum_doc_str;
 	int last_selected;
 	bool has_gum = false;
 

@@ -58,6 +58,9 @@ void load_teeth_comp(igl::opengl::glfw::Viewer& viewer, scene& fscene) {
         fscene.mesh_add_tooth(viewer.data().id, ply.first);
         //set axis centroid
         Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
+        fscene.teeth_axis[ply.first][0][3] = centroid[0];
+        fscene.teeth_axis[ply.first][1][3] = centroid[1];
+        fscene.teeth_axis[ply.first][2][3] = centroid[2];
         viewer.data().add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, ply.first);
     }
 }
@@ -151,6 +154,11 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                 Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
 
                 Eigen::Matrix4d P = cur_axis_mat * last_axis_mat.inverse();
+                //cout << "-------------------------------" << endl;
+                //cout << "cur_axis_mat: " << cur_axis_mat << endl;
+                //cout << "last_axis_mat: " << last_axis_mat << endl;
+
+                //cout <<"P: " << P << endl;
 
                 Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
                 Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
@@ -171,20 +179,21 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
 
                     //cout << gum << endl;
 
-                    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
-                        cout << "gum deform failed." << endl;
-                        return false;
-                    }
+                //    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+                //        cout << "gum deform failed." << endl;
+                //        return false;
+                //    }
 
-                    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
-                    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
+                //    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
+                //    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
 
-                    int index = viewer.mesh_index(fscene.get_gum_id(gum));
-                    viewer.data_list[index].clear();
-                    viewer.data_list[index].set_mesh(V, F);
-                    viewer.data_list[index].compute_normals();
-                    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
+                //    int index = viewer.mesh_index(fscene.get_gum_id(gum));
+                //    viewer.data_list[index].clear();
+                //    viewer.data_list[index].set_mesh(V, F);
+                //    viewer.data_list[index].compute_normals();
+                //    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
                 }
+                //cout << "-------------------------------" << endl;
             }
         }
         ImGui::End();
@@ -230,8 +239,15 @@ int main(int argc, char *argv[]) {
                     align_to_jaw(viewer, fscene);
                     load_teeth_comp(viewer, fscene);
 
-                    if (fscene.has_gum)
+                    if (fscene.has_gum) {
                         load_gum(viewer, fscene);
+                        Document upper_gum_doc;
+                        Document lower_gum_doc;
+                        upper_gum_doc.Parse(fscene.upper_gum_doc_str.c_str());
+                        lower_gum_doc.Parse(fscene.lower_gum_doc_str.c_str());
+                        fscene.upper_jaw_model.create_gum_deformer(upper_gum_doc, hdll);
+                        fscene.lower_jaw_model.create_gum_deformer(lower_gum_doc, hdll);
+                    }
 
                     callback_draw(viewer, menu, fscene, hdll);
                     cout << "load success." << endl;
