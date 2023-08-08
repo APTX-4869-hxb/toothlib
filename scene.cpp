@@ -278,8 +278,8 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
     Eigen::Matrix3d R = P.block<3, 3>(0, 0);
     Eigen::Vector3d T = P.block<3, 1>(0, 3);
 
-    cout << "R: " << R << endl;
-    cout << "T: " << T << endl;
+    //cout << "R: " << R << endl;
+    //cout << "T: " << T << endl;
     // assign tid to tt.tid
     tt[0].tid = atoi(label.c_str());
     // assign rotation to tt.rotation
@@ -394,6 +394,16 @@ bool scene::load_scene() {
         }
         assignToMap(teeth_axis_origin, string(v.name.GetString()), axis_vec);
     }
+    for (auto& v : document["teeth_axis_arranged"].GetObjectA()) {
+        vector<vector<float>> axis_vec;
+        for (int i = 0; i < v.value.Size(); i++) {
+            vector<float> axis;
+            for (int j = 0; j < v.value[i].Size(); j++)
+                axis.push_back(v.value[i][j].GetFloat());
+            axis_vec.push_back(axis);
+        }
+        assignToMap(teeth_axis_arranged, string(v.name.GetString()), axis_vec);
+    }
     cout << "load jaw model..." << endl;
     upper_jaw_model = model(document["upper_jaw_model"].GetObjectA());
     lower_jaw_model = model(document["lower_jaw_model"].GetObjectA());
@@ -456,6 +466,7 @@ bool scene::save_scene() {
     Document poses_data(kObjectType);
     Document teeth_axis_data(kObjectType);
     Document teeth_axis_origin_data(kObjectType);
+    Document teeth_axis_arranged_data(kObjectType);
     Document upper_jaw_model_document(kObjectType);
     Document lower_jaw_model_document(kObjectType);
 
@@ -486,6 +497,13 @@ bool scene::save_scene() {
     scene_data.AddMember(
         "teeth_axis_origin",
         teeth_axis_origin_data,
+        scene_data.GetAllocator());
+
+    for (auto axis : teeth_axis_arranged)
+        add_2dvector_member(teeth_axis_arranged_data, axis.first, axis.second);
+    scene_data.AddMember(
+        "teeth_axis_arranged",
+        teeth_axis_arranged_data,
         scene_data.GetAllocator());
 
     //cout << "save model..." << endl;

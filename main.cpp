@@ -140,12 +140,12 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
             vector<float> last_pose = fscene.poses[cur_tooth_label];
             ImGui::PushItemWidth(-80);
             ImGui::InputText("Tooth Label", fscene.get_tooth_label(viewer.data().id));
-            ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.1, -50.0, 50.0);
-            ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.1, -50.0, 50.0);
-            ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.1, -50.0, 50.0);
-            ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.1, -igl::PI, igl::PI);
-            ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.1, -igl::PI, igl::PI);
-            ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.1, -igl::PI, igl::PI);
+            ImGui::DragFloat("coordinate_x", &fscene.poses[cur_tooth_label][0], 0.01, -50.0, 50.0);
+            ImGui::DragFloat("coordinate_y", &fscene.poses[cur_tooth_label][1], 0.01, -50.0, 50.0);
+            ImGui::DragFloat("coordinate_z", &fscene.poses[cur_tooth_label][2], 0.01, -50.0, 50.0);
+            ImGui::DragFloat("rotate_x", &fscene.poses[cur_tooth_label][3], 0.01, -igl::PI, igl::PI);
+            ImGui::DragFloat("rotate_y", &fscene.poses[cur_tooth_label][4], 0.01, -igl::PI, igl::PI);
+            ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.01, -igl::PI, igl::PI);
             ImGui::PopItemWidth();
 
             if (last_pose != fscene.poses[cur_tooth_label]) {
@@ -178,8 +178,12 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                         gum = "upper";
 
                     //cout << gum << endl;
+                    Eigen::Matrix4d ori_axis_mat = vectorToMatrixXd(fscene.teeth_axis_arranged[cur_tooth_label]);
+                    Eigen::Matrix4d P_ori = (cur_axis_mat * ori_axis_mat.inverse()).inverse();
+                    Eigen::Vector3d T = P_ori.block<3, 1>(0, 3);
+                    P_ori.block<3, 1>(0, 3) = -T;
 
-                    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+                    if (!fscene.gum_deform(P_ori, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
                         cout << "gum deform failed." << endl;
                         return false;
                     }
@@ -427,6 +431,7 @@ int main(int argc, char *argv[]) {
                     data.set_colors(fscene.get_color(data.id));
                     data.add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, fscene.get_tooth_label(data.id));
                 }
+                fscene.teeth_axis_arranged = fscene.teeth_axis;
                 std::cout << "===============Arrangement complete.===============" << endl;
             }
 

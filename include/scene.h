@@ -28,6 +28,7 @@ public:
 	map<string, vector<float>> poses;
 	map<string, vector<vector<float>>> teeth_axis;
 	map<string, vector<vector<float>>> teeth_axis_origin;
+	map<string, vector<vector<float>>> teeth_axis_arranged;
 	model upper_jaw_model;
 	model lower_jaw_model;
 	string upper_gum_path;
