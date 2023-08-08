@@ -179,19 +179,19 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
 
                     //cout << gum << endl;
 
-                //    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
-                //        cout << "gum deform failed." << endl;
-                //        return false;
-                //    }
+                    if (!fscene.gum_deform(P, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+                        cout << "gum deform failed." << endl;
+                        return false;
+                    }
 
-                //    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
-                //    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
+                    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
+                    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
 
-                //    int index = viewer.mesh_index(fscene.get_gum_id(gum));
-                //    viewer.data_list[index].clear();
-                //    viewer.data_list[index].set_mesh(V, F);
-                //    viewer.data_list[index].compute_normals();
-                //    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
+                    int index = viewer.mesh_index(fscene.get_gum_id(gum));
+                    viewer.data_list[index].clear();
+                    viewer.data_list[index].set_mesh(V, F);
+                    viewer.data_list[index].compute_normals();
+                    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
                 }
                 //cout << "-------------------------------" << endl;
             }

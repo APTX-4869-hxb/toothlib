@@ -208,16 +208,16 @@ bool scene::generate_gums(HMODULE hdll) {
     if (!fs::is_directory(result_dir_path))
         fs::create_directory(result_dir_path);
 
-    Document document_result;
+    Document upper_document_result;
     string result_ply, error_msg;
-    if (!upper_jaw_model.generate_gum(document_result, result_ply, error_msg)) {
+    if (!upper_jaw_model.generate_gum(upper_document_result, result_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
 
-    upper_gum_doc_str = dump_json(document_result);
+    upper_gum_doc_str = dump_json(upper_document_result);
 
-    upper_jaw_model.create_gum_deformer(document_result, hdll);
+    upper_jaw_model.create_gum_deformer(upper_document_result, hdll);
 
     ofstream ofs;
     string res_mesh_name = result_dir + string("/") + upper_jaw_model.stl_name() + string("_gum.ply");
@@ -229,14 +229,15 @@ bool scene::generate_gums(HMODULE hdll) {
 
     cout << "upper gum generation complete..." << endl;
 
-    if (!lower_jaw_model.generate_gum(document_result, result_ply, error_msg)) {
+    Document lower_document_result;
+    if (!lower_jaw_model.generate_gum(lower_document_result, result_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
     }
     
-    lower_gum_doc_str = dump_json(document_result);
+    lower_gum_doc_str = dump_json(lower_document_result);
 
-    lower_jaw_model.create_gum_deformer(document_result, hdll);
+    lower_jaw_model.create_gum_deformer(lower_document_result, hdll);
 
     res_mesh_name = result_dir + string("/") + lower_jaw_model.stl_name() + string("_gum.ply");
     ofs.open(res_mesh_name, ofstream::out | ofstream::binary);

@@ -239,11 +239,30 @@ bool model::create_gum_deformer(Document &document_result, HMODULE hdll) {
     auto gum_vertices = ori_gum_info["gum_vertices"].GetArray();
     int num_gum_vertices = ori_gum_info["num_gum_vertices"].GetInt();
 
+    Eigen::MatrixXd vert_mat(num_gum_vertices, 3);
+    for (int i = 0; i < num_gum_vertices; i++) {
+        vert_mat(i, 0) = gum_vertices[i][0].GetDouble();
+        vert_mat(i, 1) = gum_vertices[i][1].GetDouble();
+        vert_mat(i, 2) = gum_vertices[i][2].GetDouble();
+    }
+
+    Eigen::Matrix3d rotate;
+    if (jaw_type == 'U')
+        rotate << -1, 0, 0,
+                   0, 1, 0,
+                   0, 0, -1;
+    else
+        rotate <<  1, 0, 0,
+                   0, 1, 0,
+                   0, 0, 1;
+
+    vert_mat = (rotate * vert_mat.transpose()).transpose();
+
     gum_vertices_ptr = new double[num_gum_vertices * 3];
     for (int i = 0; i < num_gum_vertices; i++) {
-        gum_vertices_ptr[i * 3] = gum_vertices[i][0].GetDouble();
-        gum_vertices_ptr[i * 3 + 1] = gum_vertices[i][1].GetDouble();
-        gum_vertices_ptr[i * 3 + 2] = gum_vertices[i][2].GetDouble();
+        gum_vertices_ptr[i * 3] = vert_mat(i, 0);
+        gum_vertices_ptr[i * 3 + 1] = vert_mat(i, 1);
+        gum_vertices_ptr[i * 3 + 2] = vert_mat(i, 2);
     }
 
     auto gum_faces = ori_gum_info["gum_faces"].GetArray();
