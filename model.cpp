@@ -45,7 +45,9 @@ model::model(Value val) {
     //if(val["gum_urn"].GetStringLength())
     gum_urn = string(val["gum_urn"].GetString());
     //if (val["gum_ply"].GetStringLength())
-    gum_ply = string(val["gum_ply"].GetString());
+    //gum_ply = string(val["gum_ply"].GetString());
+    download_mesh_from_urn(gum_urn, gum_ply);
+    
 }
 bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<vector<float>>>& teeth_axis, map<string, string>& teeth_comp, string& error_msg_) {
     /* This is the function to segment a jaw using ChohoTech Cloud Service.
@@ -128,10 +130,13 @@ bool model::segment_jaw(string& stl_, vector<int>& label_, map<string, vector<ve
     for (auto& v : document_result["teeth_comp"].GetObjectA()) {
         string download_urn = v.value["data"].GetString();
         assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), download_urn);
+        string mesh;
+        download_mesh_from_urn(download_urn, mesh);
+        assignToMap(teeth_comp, string(v.name.GetString()), mesh);
         //teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
     }
 
-    download_t_comp_mesh(document_result, teeth_comp);
+    //download_t_comp_mesh(document_result, teeth_comp);
 
     for (auto& v : document_result["axis"].GetObjectA()) {
         vector<vector<float>> axis;
@@ -227,8 +232,6 @@ bool model::generate_gum(Document& document_result, string& ply_, string& error_
     return true;
 }
 
-
-
 bool model::create_gum_deformer(Document &document_result, HMODULE hdll) {
     
     CREATE_FUNC create_gum_deformer = (CREATE_FUNC)GetProcAddress(hdll, "create_gum_deformer");
@@ -304,7 +307,7 @@ bool model::save_model(Document& doc) {
     //    doc.GetAllocator());
 
     add_string_member(doc, "gum_urn", gum_urn);
-    add_string_member(doc, "gum_ply", gum_ply);
+    //add_string_member(doc, "gum_ply", gum_ply);
 
     return true;
 }

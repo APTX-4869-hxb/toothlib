@@ -184,19 +184,26 @@ void download_label(Document& document_result, vector<int>& label_) {
     for (auto& v : document_result["seg_labels"].GetArray()) label_.push_back(v.IsInt() ? v.GetInt() : (int)(v.GetDouble() + 0.1));
 }
 
-void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_, const char* object) {
+//void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_, const char* object) {
+//
+//    for (auto& v : document_result[object].GetObjectA()) {
+//        string download_urn = v.value["data"].GetString();
+//
+//        cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
+//            cpr::Header{ {"X-ZH-TOKEN", USER_TOKEN} }, cpr::VerifySsl(0));
+//        assignToMap(t_comp_, string(v.name.GetString()), string(r.text));
+//        //if (t_comp_.find(v.name.GetString()) == t_comp_.end()) {
+//        //    t_comp_.insert(pair<string, string>(v.name.GetString(), string(r.text)));
+//        //}
+//        //else
+//        //    t_comp_[v.name.GetString()] = string(r.text);
+//    }
+//}
 
-    for (auto& v : document_result[object].GetObjectA()) {
-        string download_urn = v.value["data"].GetString();
+void download_mesh_from_urn(string download_urn, string &mesh) {
 
         cpr::Response r = cpr::Get(cpr::Url{ string(FILE_SERVER_URL) + "/file/download?urn=" + download_urn },
             cpr::Header{ {"X-ZH-TOKEN", USER_TOKEN} }, cpr::VerifySsl(0));
-        assignToMap(t_comp_, string(v.name.GetString()), string(r.text));
-        //if (t_comp_.find(v.name.GetString()) == t_comp_.end()) {
-        //    t_comp_.insert(pair<string, string>(v.name.GetString(), string(r.text)));
-        //}
-        //else
-        //    t_comp_[v.name.GetString()] = string(r.text);
-    }
+        mesh = string(r.text);
 }
 

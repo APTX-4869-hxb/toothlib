@@ -48,9 +48,9 @@ void load_gum(igl::opengl::glfw::Viewer& viewer,  scene& fscene) {
     fscene.set_colors(viewer.data().id, Eigen::RowVector3d(250.0 / 255.0, 203.0 / 255.0, 203.0 / 255.0));
 }
 
-void load_teeth_comp(igl::opengl::glfw::Viewer& viewer, scene& fscene) {
+void load_teeth_comp(igl::opengl::glfw::Viewer& viewer, scene& fscene, string result_dir) {
     for (auto ply : fscene.get_teeth_comp()) {
-        string result_dir = PROJECT_PATH + string("/result");
+        //string result_dir = PROJECT_PATH + string("/result");
         string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + ply.first + string(".ply");
 
         viewer.load_mesh_from_file(comp_name.c_str(), false);
@@ -148,6 +148,12 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
             ImGui::DragFloat("rotate_z", &fscene.poses[cur_tooth_label][5], 0.01, -igl::PI, igl::PI);
             ImGui::PopItemWidth();
 
+            float w = ImGui::GetContentRegionAvail().x;
+            float p = ImGui::GetStyle().FramePadding.x;
+            if (ImGui::Button("Reset", ImVec2((w - p), 0))) {
+                fscene.poses = fscene.poses_arranged;
+            }
+
             if (last_pose != fscene.poses[cur_tooth_label]) {
                 vector<float> cur_pose = fscene.poses[cur_tooth_label];
                 Eigen::Matrix4d cur_axis_mat = poseToMatrix4d(cur_pose);
@@ -184,7 +190,7 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                     P_ori.block<3, 1>(0, 3) = -T;
 
                     if (!fscene.gum_deform(P_ori, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
-                        cout << "gum deform failed." << endl;
+                        std::cout << "gum deform failed." << endl;
                         return false;
                     }
 
@@ -207,6 +213,17 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
 int main(int argc, char *argv[]) {
     //Eigen::MatrixXd V;
     //Eigen::MatrixXi F;
+
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+
+    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+
+    std::tm* now_tm = std::localtime(&now_time);
+    ostringstream oss;
+    oss << put_time(now_tm, "%Y_%m_%d_%H_%M_%S");
+    string time = oss.str();
+
+    string result_dir;
 
     HMODULE hdll;
     hdll = LoadLibrary(("libchohotech_gum_deform_x64.dll"));
@@ -238,10 +255,10 @@ int main(int argc, char *argv[]) {
             if (ImGui::Button("Load##Scene", ImVec2((w - p) / 2.f, 0)))
             {
                 std::cout << "please select scene json..." << endl;
-                if (fscene.load_scene()) {
+                if (fscene.load_scene(result_dir)) {
 
                     align_to_jaw(viewer, fscene);
-                    load_teeth_comp(viewer, fscene);
+                    load_teeth_comp(viewer, fscene, result_dir);
 
                     if (fscene.has_gum) {
                         load_gum(viewer, fscene);
@@ -254,19 +271,19 @@ int main(int argc, char *argv[]) {
                     }
 
                     callback_draw(viewer, menu, fscene, hdll);
-                    cout << "load success." << endl;
-                    cout << "The name of jaw file is: " << fscene.stl_name() << endl;
+                    std::cout << "load success." << endl;
+                    std::cout << "The name of jaw file is: " << fscene.stl_name() << endl;
                 }
                 else
-                    cout << "no scene loaded." << endl;
+                    std::cout << "no scene loaded." << endl;
                 //viewer.load_scene(); 
             }
             ImGui::SameLine(0, p);
             if (ImGui::Button("Save##Scene", ImVec2((w - p) / 2.f, 0)))
             {
-                cout << "saving scene..." << endl;
-                fscene.save_scene();
-                cout << "scene saved." << endl;
+                std::cout << "saving scene..." << endl;
+                fscene.save_scene(result_dir);
+                std::cout << "scene saved." << endl;
                 //viewer.save_scene();
             }
         }
@@ -283,6 +300,7 @@ int main(int argc, char *argv[]) {
                 string fpath_2 = viewer.open_dialog_load_mesh();
                 if (fpath_1 != "false" && fpath_2 != "false")
                     fscene = scene(fpath_1, fpath_2);
+                result_dir = PROJECT_PATH + string("/result/") + fscene.stl_name() + string("_") + time;
                 //string fpath = viewer.open_dialog_load_mesh();
                 //if(fpath != "false")
                 //    fmodel = model(fpath);
@@ -373,9 +391,9 @@ int main(int argc, char *argv[]) {
             {
                 std::cout << "===============Segment...===============" << endl;
                 //fscene.segment_jaws();
-                if (!fscene.segment_jaws())
+                if (!fscene.segment_jaws(result_dir))
                     return 1;
-                string result_dir = PROJECT_PATH + string("/result");
+                //string result_dir = PROJECT_PATH + string("/result");
                 for (auto ply : fscene.get_teeth_comp()) {
                     ofstream ofs;
                     string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + ply.first + string(".ply");
@@ -387,15 +405,16 @@ int main(int argc, char *argv[]) {
 
                 }
 
-                load_teeth_comp(viewer, fscene);
+                load_teeth_comp(viewer, fscene, result_dir);
 
-                fscene.calc_poses();
+                fscene.calc_poses(fscene.poses, fscene.teeth_axis);
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
                 callback_draw(viewer, menu, fscene, hdll);
 
                 fscene.teeth_axis_origin = fscene.teeth_axis;
+                fscene.poses_origin = fscene.poses;
                 std::cout << "===============Segment complete.===============" << endl;
             }
 
@@ -407,7 +426,7 @@ int main(int argc, char *argv[]) {
                     return 1;
 
                 //cout << "before arrangement: " << fscene.poses["31"] << endl;
-                fscene.calc_poses();
+                fscene.calc_poses(fscene.poses, fscene.teeth_axis);
                 //cout << "after arrangement: " << fscene.poses["31"] << endl;
 
                 for (auto& data : viewer.data_list) {
@@ -416,7 +435,7 @@ int main(int argc, char *argv[]) {
 
                     string FDI = fscene.get_tooth_label(data.id);
 
-                    string result_dir = PROJECT_PATH + string("/result");
+                    //string result_dir = PROJECT_PATH + string("/result");
                     ofstream ofs;
                     string comp_name = result_dir + string("/seg_") + fscene.stl_name() + string("_comp_") + FDI + string(".ply");
                     ofs.open(comp_name, ofstream::out | ofstream::binary);
@@ -432,6 +451,7 @@ int main(int argc, char *argv[]) {
                     data.add_label(centroid + Eigen::Vector3d(0, -1, 0) * 5, fscene.get_tooth_label(data.id));
                 }
                 fscene.teeth_axis_arranged = fscene.teeth_axis;
+                fscene.poses_arranged = fscene.poses;
                 std::cout << "===============Arrangement complete.===============" << endl;
             }
 
@@ -439,7 +459,7 @@ int main(int argc, char *argv[]) {
             {
                 std::cout << "===============Gum generating...===============" << endl;
 
-                if (!fscene.generate_gums(hdll))
+                if (!fscene.generate_gums(hdll, result_dir))
                     return 1;
 
                 load_gum(viewer, fscene);

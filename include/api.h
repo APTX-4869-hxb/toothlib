@@ -53,8 +53,9 @@ string submit_job(Document& document, Document& request_body, string& error_msg_
 bool check_job(string job_id, string& error_msg_);
 bool get_job_result(string job_id, Document& document_result, string& error_msg_);
 string download_mesh(Document& document_result, string& stl_, const char* object = "mesh");
-void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_, const char* object = "teeth_comp");
+//void download_t_comp_mesh(Document& document_result, map<string, string>& t_comp_stl_, const char* object = "teeth_comp");
 void download_label(Document& document_result, vector<int>& label_);
+void download_mesh_from_urn(string download_urn, string& mesh);
 
 inline
 chrono::time_point <chrono::high_resolution_clock>

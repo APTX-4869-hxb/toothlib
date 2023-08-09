@@ -46,12 +46,12 @@ scene::scene(string fpath_1, string fpath_2) {
 }
 scene::~scene() {}
 
-bool scene::segment_jaws() {
+bool scene::segment_jaws(string result_dir) {
     string result_stl, error_msg;
     vector<int> result_label;
 
 
-    string result_dir = PROJECT_PATH + string("/result");
+    //string result_dir = PROJECT_PATH + string("/result");
     auto result_dir_path = fs::path(result_dir);
 
     if (!fs::is_directory(result_dir_path)) 
@@ -163,10 +163,13 @@ bool scene::arrangement() {
     for (auto& v : document_result["arranged_comp"].GetObjectA()) {
         string download_urn = v.value["data"].GetString();
         assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), download_urn);
+        string mesh;
+        download_mesh_from_urn(download_urn, mesh);
+        assignToMap(teeth_comp_ply, string(v.name.GetString()), mesh);
         //teeth_comp_ply_urn.insert(pair<string, string>(v.name.GetString(), download_urn));
     }
 
-    download_t_comp_mesh(document_result, teeth_comp_ply, "arranged_comp");
+    //download_t_comp_mesh(document_result, teeth_comp_ply, "arranged_comp");
 
     map<string, string> upper_comp_ply_urn;
     map<string, string> lower_comp_ply_urn;
@@ -200,9 +203,9 @@ bool scene::arrangement() {
     return true;
 }
 
-bool scene::generate_gums(HMODULE hdll) {
+bool scene::generate_gums(HMODULE hdll, string result_dir) {
 
-    string result_dir = PROJECT_PATH + string("/result");
+    //string result_dir = PROJECT_PATH + string("/result");
     auto result_dir_path = fs::path(result_dir);
 
     if (!fs::is_directory(result_dir_path))
@@ -252,7 +255,7 @@ bool scene::generate_gums(HMODULE hdll) {
     return true;
 }
 
-bool scene::calc_poses() {
+bool scene::calc_poses(map<string, vector<float>>& poses, map<string, vector<vector<float>>> teeth_axis) {
     for (auto axis : teeth_axis) {
         //cout << axis.first << endl;
         Eigen::Matrix4d pose_matrix_eigen = vectorToMatrixXd(axis.second);
@@ -339,7 +342,7 @@ bool scene::gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum
 
 }
 
-bool scene::load_scene() {
+bool scene::load_scene(string &result_dir) {
     string json_name = igl::file_dialog_open();
     if (json_name == "")
         return false;
@@ -347,16 +350,18 @@ bool scene::load_scene() {
     string str((istreambuf_iterator<char>(t)),
         istreambuf_iterator<char>());
 
+    result_dir = json_name.substr(0, json_name.find_last_of('\\'));
+    cout << "loading path:" << result_dir << endl;
     Document document;
     document.Parse(str.c_str());
 
     fname = document["fname"].GetString();
 
     cout << "load completed teeth..." << endl;
-    for (auto& v : document["teeth_comp_ply"].GetObjectA()) {
-        string ply = v.value.GetString();
-        assignToMap(teeth_comp_ply, string(v.name.GetString()), ply);
-    }
+    //for (auto& v : document["teeth_comp_ply"].GetObjectA()) {
+    //    string ply = v.value.GetString();
+    //    assignToMap(teeth_comp_ply, string(v.name.GetString()), ply);
+    //}
 
     //string load_dir = PROJECT_PATH + string("/loadin");
     //for (auto ply : get_teeth_comp()) {
@@ -370,6 +375,9 @@ bool scene::load_scene() {
     for (auto& v : document["teeth_comp_ply_urn"].GetObjectA()) {
         string urn = v.value.GetString();
         assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
+        string mesh;
+        download_mesh_from_urn(urn, mesh);
+        assignToMap(teeth_comp_ply, string(v.name.GetString()), mesh);
     }
 
     cout << "load axis..." << endl;
@@ -447,13 +455,14 @@ bool scene::load_scene() {
     lower_jaw_model.set_teeth_comp_urn(lower_comp_ply_urn);
 
     cout << "calculate poses..." << endl;
-    calc_poses();
-
+    calc_poses(poses, teeth_axis);
+    calc_poses(poses_origin, teeth_axis_origin);
+    calc_poses(poses_arranged, teeth_axis_arranged);
     return true;
 }
 
-bool scene::save_scene() {
-    string result_dir = PROJECT_PATH + string("/result");
+bool scene::save_scene(string result_dir) {
+    //string result_dir = PROJECT_PATH + string("/result");
     string res_scene_name = result_dir + string("/") + stl_name() + string("_scene.json");
 
     Document scene_data(kObjectType);
@@ -471,12 +480,12 @@ bool scene::save_scene() {
     Document lower_jaw_model_document(kObjectType);
 
     add_string_member(scene_data, "fname", fname);
-    for (auto ply : teeth_comp_ply) 
-        add_string_member(teeth_comp_ply_data, ply.first, ply.second);
-    scene_data.AddMember(
-        "teeth_comp_ply",
-        teeth_comp_ply_data,
-        scene_data.GetAllocator());
+    //for (auto ply : teeth_comp_ply) 
+    //    add_string_member(teeth_comp_ply_data, ply.first, ply.second);
+    //scene_data.AddMember(
+    //    "teeth_comp_ply",
+    //    teeth_comp_ply_data,
+    //    scene_data.GetAllocator());
 
     for (auto urn : teeth_comp_ply_urn)
         add_string_member(teeth_comp_ply_urn_data, urn.first, urn.second);

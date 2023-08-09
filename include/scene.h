@@ -26,6 +26,8 @@ private:
 
 public:
 	map<string, vector<float>> poses;
+	map<string, vector<float>> poses_origin;
+	map<string, vector<float>> poses_arranged;
 	map<string, vector<vector<float>>> teeth_axis;
 	map<string, vector<vector<float>>> teeth_axis_origin;
 	map<string, vector<vector<float>>> teeth_axis_arranged;
@@ -42,13 +44,13 @@ public:
 	scene(string fpath_1, string fpath_2);
 	~scene();
 
-	bool segment_jaws();
+	bool segment_jaws(string result_dir);
 	bool arrangement();
-	bool generate_gums(HMODULE hdll);
+	bool generate_gums(HMODULE hdll, string result_dir);
 	bool gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum, vector<vector<float>>& vertices, vector<vector<int>>& faces);
-	bool calc_poses();
-	bool load_scene();
-	bool save_scene();
+	bool calc_poses(map<string, vector<float>>& poses, map<string, vector<vector<float>>> teeth_axis);
+	bool load_scene(string& result_dir);
+	bool save_scene(string result_dir);
 
 	inline string stl_name() { return fname; };
 	inline map<string, string> get_teeth_comp() { return teeth_comp_ply; };
