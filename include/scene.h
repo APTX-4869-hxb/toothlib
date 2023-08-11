@@ -17,7 +17,7 @@ namespace fs = std::filesystem;
 class scene {
 private:
 	string fname;
-	map<string, string> teeth_comp_ply;
+	//map<string, string> teeth_comp_ply;
 	map<string, string> teeth_comp_ply_urn;
 	vector<int> teeth_id;
 	map<int, string> teeth_id_label_map;
@@ -38,14 +38,15 @@ public:
 	string upper_gum_doc_str;
 	string lower_gum_doc_str;
 	int last_selected;
-	bool has_gum = false;
+	//bool has_gum = false;
+	int status = 0;
 
 	scene(); 
 	scene(string fpath_1, string fpath_2);
 	~scene();
 
-	bool segment_jaws(string result_dir);
-	bool arrangement();
+	bool segment_jaws(string result_dir, map<string, string>& teeth_comp_ply);
+	bool arrangement(map<string, string>& teeth_comp_ply);
 	bool generate_gums(HMODULE hdll, string result_dir);
 	bool gum_deform(Eigen::Matrix4d P, string label, HMODULE hdll, string gum, vector<vector<float>>& vertices, vector<vector<int>>& faces);
 	bool calc_poses(map<string, vector<float>>& poses, map<string, vector<vector<float>>> teeth_axis);
@@ -53,7 +54,8 @@ public:
 	bool save_scene(string result_dir);
 
 	inline string stl_name() { return fname; };
-	inline map<string, string> get_teeth_comp() { return teeth_comp_ply; };
+	inline map<string, string> get_teeth_comp_urn() { return teeth_comp_ply_urn; };
+	//inline void set_teeth_comp_urn(map<string, string> ply_urn) { teeth_comp_ply_urn = ply_urn; };
 	inline void mesh_add_tooth(int id, string label) { teeth_id.push_back(id); teeth_id_label_map.insert(pair<int, string>(id, label)); };
 	inline bool mesh_is_tooth(int id) { if (find(teeth_id.begin(), teeth_id.end(), id) != teeth_id.end()) return true; else false; };
 	inline int mesh_max_tooth_id() { return *max_element(teeth_id.begin(), teeth_id.end()); };
@@ -62,6 +64,7 @@ public:
 
 	inline void mesh_add_gum(string type, int id) { gum_id.insert(pair<string, int>(type, id)); };
 	inline int get_gum_id(string type) { return gum_id[type]; };
+	inline string get_gum_type(int id) { for (auto pair : gum_id) { if (pair.second == id) return pair.first; }; };
 
 	inline void set_colors(int id, Eigen::RowVector3d color) { colors.emplace(id, color); };
 	inline Eigen::RowVector3d get_color(int id) { return colors[id]; };

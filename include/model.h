@@ -62,7 +62,7 @@ public:
     //inline void set_colors(int id, Eigen::RowVector3d color) { colors.emplace(id, color); };
     //inline Eigen::RowVector3d get_color(int id) { return colors[id]; };
     inline void set_teeth_comp_urn(map<string, string> ply_urn) { teeth_comp_ply_urn = ply_urn; };
-    //inline map<string, string> get_teeth_comp() { return teeth_comp_stl; };
+    inline map<string, string> get_teeth_comp_urn() { return teeth_comp_ply_urn; };
     //inline void mesh_add_tooth(int id, string label) { teeth_id.push_back(id); teeth_id_label_map.insert(pair<int, string>(id, label)); };
     //inline bool mesh_is_tooth(int id) { if (find(teeth_id.begin(), teeth_id.end(), id) != teeth_id.end()) return true; else false; };
     //inline int mesh_max_tooth_id() { return *max_element(teeth_id.begin(), teeth_id.end()); };

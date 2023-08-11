@@ -46,7 +46,7 @@ scene::scene(string fpath_1, string fpath_2) {
 }
 scene::~scene() {}
 
-bool scene::segment_jaws(string result_dir) {
+bool scene::segment_jaws(string result_dir, map<string, string>& teeth_comp_ply) {
     string result_stl, error_msg;
     vector<int> result_label;
 
@@ -91,10 +91,16 @@ bool scene::segment_jaws(string result_dir) {
 
     cout << "lower jaw segment complete..." << endl;
 
+    map<string, string> upper_ply_urn = upper_jaw_model.get_teeth_comp_urn();
+    map<string, string> lower_ply_urn = lower_jaw_model.get_teeth_comp_urn();
+
+    teeth_comp_ply_urn.insert(upper_ply_urn.begin(), upper_ply_urn.end());
+    teeth_comp_ply_urn.insert(lower_ply_urn.begin(), lower_ply_urn.end());
+
     return true;
 }
 
-bool scene::arrangement() {
+bool scene::arrangement(map<string, string>& teeth_comp_ply) {
     string error_msg;
     cpr::Response r;
     Document input_data(kObjectType);
@@ -248,7 +254,7 @@ bool scene::generate_gums(HMODULE hdll, string result_dir) {
     ofs.close();
 
     lower_gum_path = res_mesh_name;
-    has_gum = true;
+    //has_gum = true;
 
     cout << "lower gum generation complete..." << endl;
 
@@ -375,9 +381,9 @@ bool scene::load_scene(string &result_dir) {
     for (auto& v : document["teeth_comp_ply_urn"].GetObjectA()) {
         string urn = v.value.GetString();
         assignToMap(teeth_comp_ply_urn, string(v.name.GetString()), urn);
-        string mesh;
-        download_mesh_from_urn(urn, mesh);
-        assignToMap(teeth_comp_ply, string(v.name.GetString()), mesh);
+        //string mesh;
+        //download_mesh_from_urn(urn, mesh);
+        //assignToMap(teeth_comp_ply, string(v.name.GetString()), mesh);
     }
 
     cout << "load axis..." << endl;
@@ -416,8 +422,8 @@ bool scene::load_scene(string &result_dir) {
     upper_jaw_model = model(document["upper_jaw_model"].GetObjectA());
     lower_jaw_model = model(document["lower_jaw_model"].GetObjectA());
 
-    has_gum = atoi(document["has_gum"].GetString());
-    if (has_gum) {
+    status = atoi(document["status"].GetString());
+    if (status & 0b100) {
         //cout << "load gum..." << endl;
         //ofstream ofs;
         //string gum_name = load_dir + string("/") + upper_jaw_model.stl_name() + string("_gum.ply");
@@ -537,9 +543,9 @@ bool scene::save_scene(string result_dir) {
     char last_selected_char[10];
     itoa(last_selected, last_selected_char, 10);
     add_string_member(scene_data, "last_selected", string(last_selected_char));
-    char has_gum_char[10];
-    itoa(has_gum, has_gum_char, 10);
-    add_string_member(scene_data, "has_gum", has_gum_char);
+    char status_char[10];
+    itoa(status, status_char, 10);
+    add_string_member(scene_data, "status", status_char);
 
     ofstream ofs;
     ofs.open(res_scene_name, ofstream::out | ofstream::binary);
