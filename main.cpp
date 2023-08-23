@@ -238,6 +238,8 @@ int main(int argc, char *argv[]) {
     //// Load a mesh in OFF format
     //igl::readOFF("bunny.off", V, F);
     scene fscene;
+    NumPredictor mlp_predictor;
+    StagingGenerator stage_g;
     //model fmodel;
     // Init the viewer
     igl::opengl::glfw::Viewer viewer;
@@ -524,12 +526,19 @@ int main(int argc, char *argv[]) {
                 fscene.status |= 0b100;
                 std::cout << "===============Gum generation complete.===============" << endl;
             }
-            if (ImGui::Button("PredictNumber##Functions", ImVec2((w - p), 0)))
+            if (ImGui::Button("Predict Number##Functions", ImVec2((w - p), 0)))
             {
                 std::cout << "===============Predict Staging Number...===============" << endl;
-                NumPredictor mlp_predictor;
                 mlp_predictor.Solution(fscene.teeth_axis_origin, fscene.teeth_axis);
                 std::cout << "===============predict complete.===============" << endl;
+                std::cout << "predict result: " << to_string(mlp_predictor.getStagingNum()) << endl;
+            }
+            if (ImGui::Button("Staging Generation##Functions", ImVec2((w - p), 0)))
+            {
+                std::cout << "===============Staging...===============" << endl;
+                std::cout << "before stging:" << mlp_predictor.staging_num << endl;
+                stage_g.Solution(fscene.teeth_axis_origin, fscene.teeth_axis, mlp_predictor.staging_num);
+                std::cout << "===============Staging complete.===============" << endl;
             }
         }
 
