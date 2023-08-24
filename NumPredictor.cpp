@@ -793,8 +793,8 @@ vector<torch::Tensor> StagingGenerator::evaluate(torch::jit::script::Module mode
 }
 
 void StagingGenerator::post_process() {}
-void StagingGenerator::Solution(map<string, vector<vector<float>>> start, map<string, vector<vector<float>>> end, int frame_num) {
-
+map<string, vector<vector<float>>> StagingGenerator::Solution(map<string, vector<vector<float>>> start, map<string, vector<vector<float>>> end, int frame_num) {
+    map<string, vector<vector<float> > > res;
     string config = "cmpgeo_context_modelVMeanNoMask_nogeo";
     string dconfig = "newgeo_context_modelNOGEOdense";
     // TODO:load config by name
@@ -810,7 +810,7 @@ void StagingGenerator::Solution(map<string, vector<vector<float>>> start, map<st
     }
     catch (const c10::Error& e) {
         std::cerr << "Error loading the traced model: " << e.msg() << std::endl;
-        return;
+        return res;
     }
 
     generator_dir = PROJECT_PATH + string("/model/scripted_model_dense.pt");
@@ -819,7 +819,7 @@ void StagingGenerator::Solution(map<string, vector<vector<float>>> start, map<st
     }
     catch (const c10::Error& e) {
         std::cerr << "Error loading the traced model: " << e.msg() << std::endl;
-        return;
+        return res;
     }
 
     map<string, int> indices = { {"r_start_idx", 0},
@@ -932,8 +932,70 @@ void StagingGenerator::Solution(map<string, vector<vector<float>>> start, map<st
         pos_new = sp_new[0].slice(1, res_slice[0], res_slice[1]).clone();
         rot9d_new = sp_new[1].slice(1, res_slice[0], res_slice[1]).clone();
     }
-
-
+    // return [id, (seq,dim) ]-> dim=pos3 + rot9 = 12
+    // map<string, vector<vector<float> > > res;
+    int cnt = 0;
+    for (int i = 17; i > 10; i--) {
+        for (int j = 0; j < frame; j++) {
+            vector<float> val;
+            for (int k = 0; k < 3; k++) {
+                val.push_back(pos_new[0][j][cnt][k].item().toFloat());
+            }
+            for (int k = 0; k < 3; k++) {
+                for (int m = 0; m < 3; m++) {
+                    val.push_back(rot9d_new[0][j][cnt][k][m].item().toFloat());
+                }
+            }
+            res[to_string(i)].push_back(val);
+        }
+        cnt += 1;
+    }
+    for (int i = 21; i < 28; i++) {
+        for (int j = 0; j < frame; j++) {
+            vector<float> val;
+            for (int k = 0; k < 3; k++) {
+                val.push_back(pos_new[0][j][cnt][k].item().toFloat());
+            }
+            for (int k = 0; k < 3; k++) {
+                for (int m = 0; m < 3; m++) {
+                    val.push_back(rot9d_new[0][j][cnt][k][m].item().toFloat());
+                }
+            }
+            res[to_string(i)].push_back(val);
+        }
+        cnt += 1;
+    }
+    for (int i = 47; i > 40; i--) {
+        for (int j = 0; j < frame; j++) {
+            vector<float> val;
+            for (int k = 0; k < 3; k++) {
+                val.push_back(pos_new[0][j][cnt][k].item().toFloat());
+            }
+            for (int k = 0; k < 3; k++) {
+                for (int m = 0; m < 3; m++) {
+                    val.push_back(rot9d_new[0][j][cnt][k][m].item().toFloat());
+                }
+            }
+            res[to_string(i)].push_back(val);
+        }
+        cnt += 1;
+    }
+    for (int i = 31; i < 38; i++) {
+        for (int j = 0; j < frame; j++) {
+            vector<float> val;
+            for (int k = 0; k < 3; k++) {
+                val.push_back(pos_new[0][j][cnt][k].item().toFloat());
+            }
+            for (int k = 0; k < 3; k++) {
+                for (int m = 0; m < 3; m++) {
+                    val.push_back(rot9d_new[0][j][cnt][k][m].item().toFloat());
+                }
+            }
+            res[to_string(i)].push_back(val);
+        }
+        cnt += 1;
+    }
+    return res;
 }
 
 torch::Tensor StagingGenerator::Net_forward(torch::jit::script::Module model, torch::Tensor x, torch::Tensor keypos, torch::Tensor mask) {

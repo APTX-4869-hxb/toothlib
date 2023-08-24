@@ -80,7 +80,7 @@ public:
 	vector<torch::Tensor> evaluate(torch::jit::script::Module model, torch::Tensor positions, torch::Tensor rotations, vector<int> seq_slice, map<string, int> indices, torch::Tensor _mean, torch::Tensor _std, torch::Tensor atten_mask,  vector<int> midway_targets);
 
 	void post_process();
-	void Solution(map<string, vector<vector<float>>> start, map<string, vector<vector<float>>> end, int frame_num);
+	map<string, vector<vector<float>>> Solution(map<string, vector<vector<float>>> start, map<string, vector<vector<float>>> end, int frame_num);
 private:
 	torch::Tensor Net_forward(torch::jit::script::Module model,torch::Tensor x, torch::Tensor keypos, torch::Tensor mask);
 };
