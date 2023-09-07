@@ -31,6 +31,7 @@ public:
 	map<string, vector<vector<float>>> teeth_axis;
 	map<string, vector<vector<float>>> teeth_axis_origin;
 	map<string, vector<vector<float>>> teeth_axis_arranged;
+	map<string, vector<Eigen::Matrix4d>> staging_axis_mats;
 	model upper_jaw_model;
 	model lower_jaw_model;
 	string upper_gum_path;
@@ -61,6 +62,8 @@ public:
 	inline int mesh_max_tooth_id() { return *max_element(teeth_id.begin(), teeth_id.end()); };
 	inline int mesh_min_tooth_id() { return *min_element(teeth_id.begin(), teeth_id.end()); };
 	inline string& get_tooth_label(int id) { return teeth_id_label_map[id]; }
+	inline int get_tooth_id(string label) { for (auto pair : teeth_id_label_map) { if (pair.second == label) return pair.first; }; }
+	inline void cout_tooth_id() { for (auto pair : teeth_id_label_map) { cout << pair.second << ":" << pair.first << endl; } }
 
 	inline void mesh_add_gum(string type, int id) { gum_id.insert(pair<string, int>(type, id)); };
 	inline int get_gum_id(string type) { return gum_id[type]; };

@@ -57,6 +57,7 @@ bool scene::segment_jaws(string result_dir, map<string, string>& teeth_comp_ply)
     if (!fs::is_directory(result_dir_path)) 
         fs::create_directory(result_dir_path);
 
+    cout << "Segmenting upper jaw..." << endl;
     if (!upper_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, teeth_comp_ply, error_msg)) {
         cout << error_msg << endl;
         return false;
@@ -73,7 +74,7 @@ bool scene::segment_jaws(string result_dir, map<string, string>& teeth_comp_ply)
     for (const auto& e : result_label) ofs << e << endl;
     ofs.close();
 
-    cout << "upper jaw segment complete..." << endl;
+    cout << "upper jaw segment complete...Segmenting lower jaw..." << endl;
 
     if (!lower_jaw_model.segment_jaw(result_stl, result_label, teeth_axis, teeth_comp_ply, error_msg)) {
         cout << error_msg << endl;
