@@ -30,6 +30,20 @@ void add_vector_member(Document& doc, const string& key, const vector<T>& vec) {
 }
 
 template <typename T>
+void add_mat_member(Document& doc, const string& key, const T& mat) {
+    auto& doc_allocator = doc.GetAllocator();
+    rapidjson::Value vectorValue(rapidjson::kArrayType);
+    // ½« Eigen::MatrixXf ×ª»»Îª rapidjson::Value
+    for (int i = 0; i < mat.rows(); ++i) 
+        for (int j = 0; j < mat.cols(); ++j) 
+            vectorValue.PushBack(mat(i, j), doc_allocator);
+    
+    Value k;
+    k.SetString(key.c_str(), doc_allocator);
+    doc.AddMember(k, vectorValue, doc_allocator);
+}
+
+template <typename T>
 void add_2dvector_member(Document& doc, const string& key, const vector<vector<T>>& vec) {
     auto& doc_allocator = doc.GetAllocator();
     rapidjson::Value outerArray(rapidjson::kArrayType);

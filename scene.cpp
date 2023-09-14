@@ -419,6 +419,31 @@ bool scene::load_scene(string &result_dir) {
         }
         assignToMap(teeth_axis_arranged, string(v.name.GetString()), axis_vec);
     }
+
+    for (auto& v : document["gizmo_mats"].GetObjectA()) {
+        Eigen::Matrix4f T;
+        for (int i = 0; i < v.value.Size(); i++) 
+                T(i / 4, i % 4) = v.value[i].GetFloat();
+        
+        assignToMap(gizmo_mats, string(v.name.GetString()), T);
+    }
+
+    for (auto& v : document["gizmo_mats_origin"].GetObjectA()) {
+        Eigen::Matrix4f T;
+        for (int i = 0; i < v.value.Size(); i++)
+            T(i / 4, i % 4) = v.value[i].GetFloat();
+
+        assignToMap(gizmo_mats_origin, string(v.name.GetString()), T);
+    }
+
+    for (auto& v : document["gizmo_mats_arranged"].GetObjectA()) {
+        Eigen::Matrix4f T;
+        for (int i = 0; i < v.value.Size(); i++)
+            T(i / 4, i % 4) = v.value[i].GetFloat();
+
+        assignToMap(gizmo_mats_arranged, string(v.name.GetString()), T);
+    }
+
     cout << "load jaw model..." << endl;
     upper_jaw_model = model(document["upper_jaw_model"].GetObjectA());
     lower_jaw_model = model(document["lower_jaw_model"].GetObjectA());
@@ -483,6 +508,9 @@ bool scene::save_scene(string result_dir) {
     Document teeth_axis_data(kObjectType);
     Document teeth_axis_origin_data(kObjectType);
     Document teeth_axis_arranged_data(kObjectType);
+    Document gizmo_mat_data(kObjectType);
+    Document gizmo_mat_origin_data(kObjectType);
+    Document gizmo_mat_arranged_data(kObjectType);
     Document upper_jaw_model_document(kObjectType);
     Document lower_jaw_model_document(kObjectType);
 
@@ -520,6 +548,27 @@ bool scene::save_scene(string result_dir) {
     scene_data.AddMember(
         "teeth_axis_arranged",
         teeth_axis_arranged_data,
+        scene_data.GetAllocator());
+
+    for (auto mat : gizmo_mats)
+        add_mat_member(gizmo_mat_data, mat.first, mat.second);
+    scene_data.AddMember(
+        "gizmo_mats",
+        gizmo_mat_data,
+        scene_data.GetAllocator());
+
+    for (auto mat : gizmo_mats_origin)
+        add_mat_member(gizmo_mat_origin_data, mat.first, mat.second);
+    scene_data.AddMember(
+        "gizmo_mats_origin",
+        gizmo_mat_origin_data,
+        scene_data.GetAllocator());
+
+    for (auto mat : gizmo_mats_arranged)
+        add_mat_member(gizmo_mat_arranged_data, mat.first, mat.second);
+    scene_data.AddMember(
+        "gizmo_mats_arranged",
+        gizmo_mat_arranged_data,
         scene_data.GetAllocator());
 
     //cout << "save model..." << endl;

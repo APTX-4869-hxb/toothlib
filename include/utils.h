@@ -9,6 +9,7 @@ Eigen::MatrixXi vectorToMatrixXi(const std::vector<std::vector<int>>& vec);
 Eigen::MatrixXd vectorToMatrixXd(const std::vector<std::vector<float>>& vec);
 std::vector<std::vector<float>> matrixXdToVector(const Eigen::MatrixXd& mat);
 Eigen::Matrix4d poseToMatrix4d(std::vector<float> pose);
+std::vector<float> matrix4dToPose(Eigen::Matrix4d mat);
 
 template<typename KeyType, typename ValueType>
 void assignToMap(std::map<KeyType, ValueType>& mapObj, const KeyType& key, const ValueType& value) {

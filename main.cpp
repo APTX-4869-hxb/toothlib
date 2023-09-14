@@ -30,6 +30,7 @@ using namespace std;
 
 float text_shift_scale_factor;
 float render_scale;
+bool gizmo_dirty = false;
 int cur_frame = 0;
 int frame_num;
 int play_continue = false;
@@ -63,17 +64,71 @@ void load_teeth_comp(igl::opengl::glfw::Viewer& viewer, scene& fscene, string re
         fscene.mesh_add_tooth(viewer.data().id, ply.first);
         //set axis centroid
         Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
+
         if (centroid_change) {
             fscene.teeth_axis[ply.first][0][3] = centroid[0];
             fscene.teeth_axis[ply.first][1][3] = centroid[1];
             fscene.teeth_axis[ply.first][2][3] = centroid[2];
         }
+
         Eigen::Matrix4d axis = vectorToMatrixXd(fscene.teeth_axis[ply.first]);
         viewer.data().add_label(centroid + (axis * Eigen::Vector4d(0, -1, 0, 1)).head<3>() * 0.3, ply.first);
     }
 }
 
-void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, scene& fscene, HMODULE& hdll) {
+bool deform_gum(igl::opengl::glfw::Viewer& viewer, scene& fscene, HMODULE& hdll, string cur_tooth_label) {
+    
+    string gum;
+    vector<vector<float>> new_gum_v;
+    vector<vector<int>> new_gum_f;
+
+    if (cur_tooth_label[0] == '3' || cur_tooth_label[0] == '4' || cur_tooth_label[0] == '7' || cur_tooth_label[0] == '8' || (atoi(cur_tooth_label.c_str()) > 94) && (atoi(cur_tooth_label.c_str()) < 99))
+        gum = "lower";
+    else if (cur_tooth_label[0] == '1' || cur_tooth_label[0] == '2' || cur_tooth_label[0] == '5' || cur_tooth_label[0] == '6' || (atoi(cur_tooth_label.c_str()) > 90) && (atoi(cur_tooth_label.c_str()) < 95))
+        gum = "upper";
+
+    //cout << gum << endl;
+    Eigen::Matrix4d ori_axis_mat = vectorToMatrixXd(fscene.teeth_axis_arranged[cur_tooth_label]);
+    //Eigen::Matrix4d P_ori = cur_axis_mat * ori_axis_mat.inverse();
+
+    vector<float> cur_pose = fscene.poses[cur_tooth_label];
+    Eigen::Matrix4d cur_axis_mat = poseToMatrix4d(cur_pose);
+
+    Eigen::Matrix4d P_ori = (cur_axis_mat * ori_axis_mat.inverse()).inverse();
+    Eigen::Vector3d T = P_ori.block<3, 1>(0, 3);
+    P_ori.block<3, 1>(0, 3) = -T;
+
+    if (!fscene.gum_deform(P_ori, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
+        std::cout << "gum deform failed." << endl;
+        return false;
+    }
+
+    Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
+    Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
+
+    int index = viewer.mesh_index(fscene.get_gum_id(gum));
+    viewer.data_list[index].clear();
+    viewer.data_list[index].set_mesh(V, F);
+    viewer.data_list[index].compute_normals();
+    viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
+    return true;
+    
+}
+
+void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::ImGuiMenu& menu, igl::opengl::glfw::imgui::ImGuizmoWidget& gizmo, scene& fscene, HMODULE& hdll) {
+    
+    viewer.callback_key_pressed = [&](igl::opengl::glfw::Viewer&, unsigned int key, int mod)
+    {
+        switch (key)
+        {
+        case ' ': gizmo.visible = !gizmo.visible; return true;
+        case 'W': case 'w': gizmo.operation = ImGuizmo::TRANSLATE; return true;
+        case 'E': case 'e': gizmo.operation = ImGuizmo::ROTATE;    return true;
+        case 'R': case 'r': gizmo.operation = ImGuizmo::SCALE;     return true;
+        }
+        return false;
+    };
+    
     viewer.callback_pre_draw =
         [&](igl::opengl::glfw::Viewer&)
     {
@@ -91,12 +146,17 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                 else
                     viewer.selected_data_index = viewer.mesh_index(fscene.mesh_max_tooth_id());
             }
-
+            cur_id = viewer.data_list[viewer.selected_data_index].id;
             for (auto& data : viewer.data_list) {
                 data.set_colors(fscene.get_color(data.id));
             }
             viewer.data_list[viewer.selected_data_index].set_colors(fscene.get_color(viewer.data_list[viewer.selected_data_index].id) + Eigen::RowVector3d(0.1, 0.1, 0.1));
+
+            gizmo_dirty = false;
+            gizmo.T = fscene.gizmo_mats[fscene.get_tooth_label(cur_id)];
+
             fscene.last_selected = viewer.selected_data_index;
+            gizmo_dirty = true;
         }
 
         return false;
@@ -160,7 +220,29 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                 float w = ImGui::GetContentRegionAvail().x;
                 float p = ImGui::GetStyle().FramePadding.x;
                 if (ImGui::Button("Reset", ImVec2((w - p), 0))) {
-                    fscene.poses = fscene.poses_arranged;
+                    gizmo_dirty = false;
+                    if ((fscene.status & 0b0010)) {
+                        fscene.gizmo_mats = fscene.gizmo_mats_arranged;
+                        fscene.poses = fscene.poses_arranged;
+                    }
+                    else {
+                        fscene.gizmo_mats = fscene.gizmo_mats_origin;
+                        fscene.poses = fscene.poses_origin;
+                    }
+                    gizmo.T = fscene.gizmo_mats[cur_tooth_label];
+                    //Eigen::MatrixXd axis_mat = poseToMatrix4d(fscene.poses[cur_tooth_label]);
+                    //fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(axis_mat);
+                    gizmo_dirty = true;
+                }
+
+                if (ImGui::Button("Transform", ImVec2((w - p), 0))) {
+                    gizmo.visible = true;
+                    gizmo_dirty = true;
+                }
+
+                if (ImGui::Button("stop Transform", ImVec2((w - p), 0))) {
+                    gizmo.visible = false;
+                    gizmo_dirty = false;
                 }
 
                 if (last_pose != fscene.poses[cur_tooth_label]) {
@@ -169,56 +251,49 @@ void callback_draw(igl::opengl::glfw::Viewer& viewer, igl::opengl::glfw::imgui::
                     Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
 
                     Eigen::Matrix4d P = cur_axis_mat * last_axis_mat.inverse();
-                    //cout << "-------------------------------" << endl;
-                    //cout << "cur_axis_mat: " << cur_axis_mat << endl;
-                    //cout << "last_axis_mat: " << last_axis_mat << endl;
-
-                    //cout <<"P: " << P << endl;
-                    //Eigen::MatrixXd new_local_V = (viewer.data().V.rowwise().homogeneous() * P);
 
                     Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
                     Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
                     viewer.data().set_vertices(new_V);
-
+                    viewer.data().compute_normals();
                     fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
                     //cout << "hhh" << endl;
-
-                    if (fscene.status & 0b100) {
-                        string gum;
-                        vector<vector<float>> new_gum_v;
-                        vector<vector<int>> new_gum_f;
-
-                        if (cur_tooth_label[0] == '3' || cur_tooth_label[0] == '4' || cur_tooth_label[0] == '7' || cur_tooth_label[0] == '8' || (atoi(cur_tooth_label.c_str()) > 94) && (atoi(cur_tooth_label.c_str()) < 99))
-                            gum = "lower";
-                        else if (cur_tooth_label[0] == '1' || cur_tooth_label[0] == '2' || cur_tooth_label[0] == '5' || cur_tooth_label[0] == '6' || (atoi(cur_tooth_label.c_str()) > 90) && (atoi(cur_tooth_label.c_str()) < 95))
-                            gum = "upper";
-
-                        //cout << gum << endl;
-                        Eigen::Matrix4d ori_axis_mat = vectorToMatrixXd(fscene.teeth_axis_arranged[cur_tooth_label]);
-                        //Eigen::Matrix4d P_ori = cur_axis_mat * ori_axis_mat.inverse();
-
-                        Eigen::Matrix4d P_ori = (cur_axis_mat * ori_axis_mat.inverse()).inverse();
-                        Eigen::Vector3d T = P_ori.block<3, 1>(0, 3);
-                        P_ori.block<3, 1>(0, 3) = -T;
-
-                        if (!fscene.gum_deform(P_ori, cur_tooth_label, hdll, gum, new_gum_v, new_gum_f)) {
-                            std::cout << "gum deform failed." << endl;
+                    if (fscene.status & 0b100) 
+                        if (!deform_gum(viewer, fscene, hdll, cur_tooth_label))
                             return false;
-                        }
-
-                        Eigen::MatrixXd V = vectorToMatrixXd(new_gum_v); // Vertices
-                        Eigen::MatrixXi F = vectorToMatrixXi(new_gum_f); // Faces
-
-                        int index = viewer.mesh_index(fscene.get_gum_id(gum));
-                        viewer.data_list[index].clear();
-                        viewer.data_list[index].set_mesh(V, F);
-                        viewer.data_list[index].compute_normals();
-                        viewer.data_list[index].set_colors(fscene.get_color(fscene.get_gum_id(gum)));
-                    }
-                    //cout << "-------------------------------" << endl;
                 }
             }
             ImGui::End();
+
+        }
+    };
+
+    gizmo.callback = [&](const Eigen::Matrix4f& T)
+    {
+        if (fscene.last_selected == viewer.selected_data_index && gizmo_dirty) {
+            string cur_tooth_label = fscene.get_tooth_label(viewer.data().id);
+            Eigen::Matrix4f last_T = fscene.gizmo_mats[cur_tooth_label];
+
+            Eigen::Matrix4d P = (T * last_T.inverse()).cast<double>();
+            cout << "P: " << endl;
+            cout << P << endl;
+            vector<float> last_pose = fscene.poses[cur_tooth_label];
+            Eigen::Matrix4d last_axis_mat = poseToMatrix4d(last_pose);
+            Eigen::Matrix4d cur_axis_mat = P * last_axis_mat;
+            vector<float> cur_pose = matrix4dToPose(cur_axis_mat);
+
+            fscene.poses[cur_tooth_label] = cur_pose;
+            Eigen::MatrixXd new_local_V = (P * viewer.data().V.rowwise().homogeneous().transpose()).transpose();
+            Eigen::MatrixXd new_V = new_local_V.block(0, 0, viewer.data().V.rows(), 3);
+            viewer.data().set_vertices(new_V);
+            viewer.data().compute_normals();
+
+            fscene.gizmo_mats[cur_tooth_label] = T;
+            fscene.teeth_axis[cur_tooth_label] = matrixXdToVector(cur_axis_mat);
+
+            if (fscene.status & 0b100)
+                if (!deform_gum(viewer, fscene, hdll, cur_tooth_label))
+                    return false;
 
         }
     };
@@ -260,9 +335,9 @@ int main(int argc, char* argv[]) {
     igl::opengl::glfw::imgui::ImGuiMenu menu;
     plugin.widgets.push_back(&menu);
 
-    //igl::opengl::glfw::imgui::ImGuizmoWidget gizmo;
-    //plugin.widgets.push_back(&gizmo);
-    //gizmo.visible = false;
+    igl::opengl::glfw::imgui::ImGuizmoWidget gizmo;
+    plugin.widgets.push_back(&gizmo);
+    gizmo.visible = false;
 
 
     int pose_dirty = 0;
@@ -314,8 +389,8 @@ int main(int argc, char* argv[]) {
                         fscene.upper_jaw_model.create_gum_deformer(upper_gum_doc, hdll);
                         fscene.lower_jaw_model.create_gum_deformer(lower_gum_doc, hdll);
                     }
-
-                    callback_draw(viewer, menu, fscene, hdll);
+                    
+                    callback_draw(viewer, menu, gizmo, fscene, hdll);
                     std::cout << "load success." << endl;
                     std::cout << "The name of jaw file is: " << fscene.stl_name() << endl;
                 }
@@ -495,13 +570,19 @@ int main(int argc, char* argv[]) {
                     // Eigen::MatrixXd new_local_V = (V.rowwise().homogeneous() * axis.transpose());
                     Eigen::MatrixXd new_V = new_local_V.block(0, 0, V.rows(), 3);
                     igl::writePLY(comp_name, new_V, F);
+
+                    Eigen::Vector3d centroid = 0.5 * (viewer.data().V.colwise().maxCoeff() + viewer.data().V.colwise().minCoeff());
+                    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+                    T.block(0, 3, 3, 1) = centroid.cast<float>();
+                    assignToMap(fscene.gizmo_mats, ply.first, T);
+                    assignToMap(fscene.gizmo_mats_origin, ply.first, T);
                 }
 
                 fscene.calc_poses(fscene.poses, fscene.teeth_axis);
 
                 viewer.erase_mesh(0);
                 viewer.erase_mesh(0);
-                callback_draw(viewer, menu, fscene, hdll);
+                callback_draw(viewer, menu, gizmo, fscene, hdll);
 
                 fscene.teeth_axis_origin = fscene.teeth_axis;
                 fscene.poses_origin = fscene.poses;
@@ -544,6 +625,12 @@ int main(int argc, char* argv[]) {
                     Eigen::MatrixXd new_V = new_local_V.block(0, 0, V.rows(), 3);
 
                     Eigen::Vector3d centroid = 0.5 * (new_V.colwise().maxCoeff() + new_V.colwise().minCoeff());
+
+                    Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+                    T.block(0, 3, 3, 1) = centroid.cast<float>();
+                    assignToMap(fscene.gizmo_mats, fscene.get_tooth_label(data.id), T);
+                    assignToMap(fscene.gizmo_mats_arranged, fscene.get_tooth_label(data.id), T);
+
                     data.clear();
                     data.set_mesh(new_V, F);
                     data.compute_normals();
@@ -551,6 +638,7 @@ int main(int argc, char* argv[]) {
                     Eigen::Matrix4d axis = vectorToMatrixXd(fscene.teeth_axis[fscene.get_tooth_label(data.id)]);
                     data.add_label(centroid + (axis * Eigen::Vector4d(0, -1, 0, 1)).head<3>() * 0.3, fscene.get_tooth_label(data.id));
                 }
+
                 fscene.teeth_axis_arranged = fscene.teeth_axis;
                 fscene.poses_arranged = fscene.poses;
                 fscene.status |= 0b10;
@@ -625,6 +713,7 @@ int main(int argc, char* argv[]) {
                         Eigen::MatrixXd new_V = new_local_V.block(0, 0, data.V.rows(), 3);
 
                         data.set_vertices(new_V);
+                        data.compute_normals();
                     }
                     else {
                         data.set_visible(false);
@@ -684,6 +773,7 @@ int main(int argc, char* argv[]) {
                                 Eigen::MatrixXd new_V = new_local_V.block(0, 0, data.V.rows(), 3);
 
                                 data.set_vertices(new_V);
+                                data.compute_normals();
 
                             }
                         }

@@ -31,6 +31,9 @@ public:
 	map<string, vector<vector<float>>> teeth_axis;
 	map<string, vector<vector<float>>> teeth_axis_origin;
 	map<string, vector<vector<float>>> teeth_axis_arranged;
+	map<string, Eigen::Matrix4f> gizmo_mats;
+	map<string, Eigen::Matrix4f> gizmo_mats_origin;
+	map<string, Eigen::Matrix4f> gizmo_mats_arranged;
 	map<string, vector<Eigen::Matrix4d>> staging_axis_mats;
 	model upper_jaw_model;
 	model lower_jaw_model;

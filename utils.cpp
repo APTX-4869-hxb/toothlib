@@ -56,3 +56,11 @@ Eigen::Matrix4d poseToMatrix4d(std::vector<float> pose) {
 
     return pose_matrix;
 }
+
+std::vector<float> matrix4dToPose(Eigen::Matrix4d mat) {
+    Eigen::Matrix3d R = mat.block<3, 3>(0, 0);
+    Eigen::Vector3d T = mat.block<3, 1>(0, 3);
+    Eigen::Vector3d euler_angles = R.eulerAngles(2, 1, 0); // 获取欧拉角，这里的顺序为 ZYX
+    std::vector<float> pose = { float(T[0]), float(T[1]), float(T[2]), float(euler_angles[2]), float(euler_angles[1]), float(euler_angles[0]) };
+    return pose;
+}
